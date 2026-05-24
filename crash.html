@@ -121,6 +121,7 @@
         startTime: performance.now(),
         active: true,
         cashedAt: null,
+        currentMult: 1,
         points: [],
       };
       multEl.className = "crash-mult";
@@ -140,6 +141,7 @@
       if (!state || !state.active) return;
       const t = (now - state.startTime) / 1000;
       const mult = Math.max(1, Math.exp(t * 0.16));
+      state.currentMult = mult;
 
       // Crash?
       if (mult >= state.crashAt) {
@@ -171,8 +173,9 @@
     function cashout(forcedAt) {
       if (!state || !state.active) return;
       state.active = false;
-      const at = forcedAt || Number(multEl.textContent);
+      const at = Number(forcedAt) || state.currentMult || 1;
       state.cashedAt = at;
+      multEl.textContent = at.toFixed(2) + "×";
       multEl.classList.add("win");
       const payout = state.bet * at;
       updateBalance(payout);
