@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spinly — Онлайн казино</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-content" id="hero-content"></div>
+      <div class="hero-anim">
+        <div class="anim-stage">
+          <div class="anim-wheel"></div>
+          <div class="anim-hub">SP</div>
+          <div class="anim-ball-orbit"><div class="anim-ball"></div></div>
+
+          <div class="orbit o1"><span class="orbit-item">💎</span></div>
+          <div class="orbit o2"><span class="orbit-item">7️⃣</span></div>
+          <div class="orbit o3"><span class="orbit-item">🎲</span></div>
+          <div class="orbit o4"><span class="orbit-item">🃏</span></div>
+
+          <span class="spark s1">✦</span>
+          <span class="spark s2">✦</span>
+          <span class="spark s3">✦</span>
+          <span class="spark s4">✦</span>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-title">Игры</h2>
+    <div class="games" id="games-grid"></div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // ---------- Conditional hero rendering ----------
+    function renderHero() {
+      const u = currentUser();
+      const el = document.getElementById("hero-content");
+      if (u) {
+        el.innerHTML = `
+          <h1>Добро пожаловать,<br><span>${u.login}</span></h1>
+          <p>Все игры открыты. Удачных раундов и крупных множителей сегодня.</p>
+        `;
+      } else {
+        el.innerHTML = `
+          <span class="promo-chip">
+            <span>Промокод</span>
+            <span class="code" id="promo-code" title="Скопировать">NEW2026</span>
+            <span>· +5% к первому пополнению</span>
+          </span>
+          <h1>Добро пожаловать в <span>Spinly</span></h1>
+          <p>
+            Зарегистрируйтесь за минуту, получите стартовый бонус €1 000 и
+            активируйте промокод <strong>NEW2026</strong> — добавит +5% к вашему первому пополнению.
+          </p>
+          <div class="actions">
+            <a class="btn primary" href="account.html?tab=register">Создать аккаунт</a>
+          </div>
+        `;
+        // copy promo code to clipboard
+        const codeEl = document.getElementById("promo-code");
+        codeEl.addEventListener("click", async () => {
+          try { await navigator.clipboard.writeText("NEW2026"); } catch {}
+          codeEl.classList.add("copied");
+          const orig = codeEl.textContent;
+          codeEl.textContent = "Скопировано";
+          if (window.SFX) SFX.win();
+          setTimeout(() => {
+            codeEl.classList.remove("copied");
+            codeEl.textContent = orig;
+          }, 1400);
+        });
+      }
+    }
+
+    // ---------- Conditional games grid ----------
+    function renderGames() {
+      const u = currentUser();
+      const el = document.getElementById("games-grid");
+      const card = (game) => {
+        if (game.soon) {
+          return `
+            <div class="game-card soon">
+              <div class="game-thumb ${game.cls} soon">${game.icon}</div>
+              <div class="game-info">
+                <h3>${game.title} <span style="color: var(--muted); font-size: 12px;">(скоро)</span></h3>
+                <p>${game.desc}</p>
+              </div>
+            </div>`;
+        }
+        if (!u) {
+          return `
+            <a class="game-card locked" href="account.html?tab=register" title="Создайте аккаунт, чтобы играть">
+              <div class="game-thumb ${game.cls}">${game.icon}</div>
+              <div class="game-info">
+                <h3>${game.title}</h3>
+                <p>Доступно после регистрации</p>
+              </div>
+            </a>`;
+        }
+        return `
+          <a class="game-card" href="${game.href}">
+            <div class="game-thumb ${game.cls}">${game.icon}</div>
+            <div class="game-info">
+              <h3>${game.title}</h3>
+              <p>${game.desc}</p>
+            </div>
+          </a>`;
+      };
+
+      el.innerHTML = [
+        { title: "Mines",     cls: "mines", icon: "💣💎", href: "mines.html",
+          desc: "Открывайте поля с алмазами. Главное — не задеть бомбу." },
+        { title: "Слоты",     cls: "slots", icon: "🎰",   href: "slots.html",
+          desc: "Три барабана. Соберите комбинацию из одинаковых символов." },
+        { title: "Dice",      cls: "dice",  icon: "🎲",   href: "dice.html",
+          desc: "Выберите число и угадайте, выпадет больше или меньше." },
+        { title: "Blackjack", cls: "bj",    icon: "🃏",   soon: true,
+          desc: "Карточная классика — в разработке." },
+      ].map(card).join("");
+    }
+
+    renderHero();
+    renderGames();
+  </script>
+</body>
+</html>

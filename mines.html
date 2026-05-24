@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mines — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Mines</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Нажимайте на поля. Алмаз 💎 — выигрыш растёт. Бомба 💣 — ставка сгорает.
+      В любой момент можно «Забрать выигрыш».
+    </p>
+
+    <div class="game-layout">
+      <!-- Controls -->
+      <aside class="panel">
+        <h2>Параметры раунда</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input class="field-input" type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Количество бомб (1–24)</label>
+          <input class="field-input" type="number" id="mines" value="3" min="1" max="24" step="1">
+        </div>
+
+        <button class="btn primary full" id="start-btn">Начать раунд</button>
+        <button class="btn full" id="cashout-btn" style="margin-top: 10px;" disabled>
+          Забрать выигрыш
+        </button>
+
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Текущий раунд</h2>
+        <div class="row-2">
+          <div class="stat">
+            <div class="label">Множитель</div>
+            <div class="value gold" id="multiplier">1.00×</div>
+          </div>
+          <div class="stat">
+            <div class="label">Возможный выигрыш</div>
+            <div class="value green" id="potential">€ 0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Открыто алмазов</div>
+            <div class="value" id="opened">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Осталось</div>
+            <div class="value" id="left">25</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Board -->
+      <section>
+        <div class="board" id="board"></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const SIZE = 25; // 5x5
+    const HOUSE_EDGE = 0.97; // 3% дому
+    const board = document.getElementById("board");
+    const betInput = document.getElementById("bet");
+    const minesInput = document.getElementById("mines");
+    const startBtn = document.getElementById("start-btn");
+    const cashoutBtn = document.getElementById("cashout-btn");
+    const resultEl = document.getElementById("result");
+    const multiplierEl = document.getElementById("multiplier");
+    const potentialEl = document.getElementById("potential");
+    const openedEl = document.getElementById("opened");
+    const leftEl = document.getElementById("left");
+
+    let state = null; // { bombs: Set<int>, opened: Set<int>, bet, minesCount, active, multiplier }
+
+    function buildBoard() {
+      board.innerHTML = "";
+      for (let i = 0; i < SIZE; i++) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.idx = i;
+        tile.addEventListener("click", () => onTileClick(i));
+        board.appendChild(tile);
+      }
+    }
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    // Combinations: C(n, k)
+    function C(n, k) {
+      if (k < 0 || k > n) return 0;
+      k = Math.min(k, n - k);
+      let r = 1;
+      for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
+      return r;
+    }
+
+    // Fair multiplier after `opened` safe tiles, with `mines` bombs on 25 cells.
+    // Multiplier = HOUSE_EDGE * C(25, opened) / C(25-mines, opened)
+    function multiplierFor(opened, mines) {
+      if (opened === 0) return 1;
+      const safeTotal = SIZE - mines;
+      if (opened > safeTotal) return 0;
+      return HOUSE_EDGE * C(SIZE, opened) / C(safeTotal, opened);
+    }
+
+    function nextMultiplier(opened, mines) {
+      return multiplierFor(opened + 1, mines);
+    }
+
+    function refreshHeaderBalance() {
+      renderHeader();
+      flashBalance();
+    }
+
+    function updateRoundStats() {
+      const openedCount = state ? state.opened.size : 0;
+      const minesCount = state ? state.minesCount : Number(minesInput.value);
+      const bet = state ? state.bet : Number(betInput.value);
+      const mult = state ? state.multiplier : 1;
+      multiplierEl.textContent = mult.toFixed(2) + "×";
+      potentialEl.textContent = "€ " + fmt(state && state.active ? bet * mult : 0);
+      openedEl.textContent = openedCount;
+      leftEl.textContent = SIZE - openedCount - (state ? state.bombs.size : minesCount);
+    }
+
+    function startRound() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const minesCount = Math.max(1, Math.min(24, Math.floor(Number(minesInput.value))));
+      minesInput.value = minesCount;
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите корректную ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      // Take bet
+      updateBalance(-bet);
+      refreshHeaderBalance();
+      if (window.SFX) SFX.spinStart();
+
+      // Place bombs
+      const all = Array.from({ length: SIZE }, (_, i) => i);
+      for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [all[i], all[j]] = [all[j], all[i]];
+      }
+      const bombs = new Set(all.slice(0, minesCount));
+
+      state = {
+        bombs,
+        opened: new Set(),
+        bet,
+        minesCount,
+        active: true,
+        multiplier: 1,
+      };
+
+      // Reset tiles
+      buildBoard();
+      startBtn.disabled = true;
+      cashoutBtn.disabled = false;
+      betInput.disabled = true;
+      minesInput.disabled = true;
+      updateRoundStats();
+    }
+
+    function onTileClick(idx) {
+      if (!state || !state.active) return;
+      if (state.opened.has(idx)) return;
+
+      const tile = board.children[idx];
+      if (state.bombs.has(idx)) {
+        // Lose
+        tile.classList.add("revealed", "bomb");
+        tile.textContent = "💣";
+        if (window.SFX) SFX.bomb();
+        endRound(false);
+        return;
+      }
+
+      // Safe
+      state.opened.add(idx);
+      tile.classList.add("revealed", "gem");
+      tile.textContent = "💎";
+      if (window.SFX) SFX.gem(state.opened.size);
+
+      state.multiplier = multiplierFor(state.opened.size, state.minesCount);
+      updateRoundStats();
+
+      // Auto-cashout if all safe tiles opened
+      if (state.opened.size === SIZE - state.minesCount) {
+        endRound(true);
+      }
+    }
+
+    function cashout() {
+      if (!state || !state.active) return;
+      if (state.opened.size === 0) {
+        // Refund the bet — nothing risked yet
+        updateBalance(state.bet);
+        refreshHeaderBalance();
+        setResult("Раунд отменён, ставка возвращена.", "win");
+        finishRound();
+        return;
+      }
+      endRound(true);
+    }
+
+    function endRound(win) {
+      state.active = false;
+      // Reveal all
+      for (let i = 0; i < SIZE; i++) {
+        const tile = board.children[i];
+        if (state.opened.has(i)) continue;
+        if (state.bombs.has(i)) {
+          if (!tile.classList.contains("bomb")) {
+            tile.classList.add("revealed", "bomb", "ghost");
+            tile.textContent = "💣";
+          }
+        } else {
+          tile.classList.add("revealed", "gem", "ghost");
+          tile.textContent = "💎";
+        }
+        tile.classList.add("disabled");
+      }
+
+      if (win) {
+        const payout = state.bet * state.multiplier;
+        updateBalance(payout);
+        refreshHeaderBalance();
+        const profit = payout - state.bet;
+        const bigWin = state.multiplier >= 3;
+        if (window.SFX) SFX.win(bigWin);
+        if (bigWin) confetti(Math.min(40 + Math.floor(state.multiplier * 6), 160));
+        setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) при множителе ${state.multiplier.toFixed(2)}×`, "win");
+      } else {
+        if (window.SFX) SFX.lose();
+        setResult(`Бомба! Ставка €${fmt(state.bet)} сгорела.`, "lose");
+      }
+      finishRound();
+    }
+
+    function finishRound() {
+      startBtn.disabled = false;
+      cashoutBtn.disabled = true;
+      betInput.disabled = false;
+      minesInput.disabled = false;
+    }
+
+    // Bet quick buttons
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const mode = b.dataset.bet;
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (mode === "max") v = u.balance;
+        else v = Math.max(1, Math.floor(v * Number(mode)));
+        betInput.value = v;
+      });
+    });
+
+    startBtn.addEventListener("click", startRound);
+    cashoutBtn.addEventListener("click", cashout);
+
+    // Initial empty board (visual only)
+    buildBoard();
+    updateRoundStats();
+  </script>
+</body>
+</html>

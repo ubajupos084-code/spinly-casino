@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <div class="legal-page">
+      <h1 class="legal-title">Частые вопросы</h1>
+      <p class="legal-sub">Ответы на самые популярные вопросы. Не нашли свой? Напишите в поддержку.</p>
+
+      <div class="faq-list">
+
+        <details class="faq-item">
+          <summary>Как зарегистрироваться?</summary>
+          <div class="faq-body">
+            <p>Нажмите «Регистрация» в правом верхнем углу. Понадобится только логин (от 3 символов) и пароль (от 4 символов). Email можно привязать позже в профиле.</p>
+            <p>После регистрации на ваш баланс автоматически зачисляется приветственный бонус €1 000.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Как пополнить баланс?</summary>
+          <div class="faq-body">
+            <p>Откройте профиль (клик по аватару или балансу в шапке) и нажмите «Пополнить». Доступны три способа: банковская карта, криптовалюта и банковский перевод.</p>
+            <p>Минимальная сумма пополнения — <strong>€5</strong>, максимальная за одну операцию — <strong>€10 000</strong>. Средства зачисляются мгновенно.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Как вывести выигрыш?</summary>
+          <div class="faq-body">
+            <p>В профиле нажмите «Вывести», выберите способ и укажите сумму. Минимальный вывод — <strong>€10</strong>.</p>
+            <p>Срок обработки заявки — до <strong>1 рабочего дня</strong>. При первой попытке вывода может потребоваться верификация (KYC).</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Игры действительно честные?</summary>
+          <div class="faq-body">
+            <p>Да. Все игры используют криптографически стойкий генератор случайных чисел. Математика открыта:</p>
+            <p>• <strong>Mines</strong>: множитель = 0.97 × C(25, k) / C(25−m, k), edge 3%.<br>
+            • <strong>Dice</strong>: множитель = 0.99 × 100 / шанс, edge 1%.<br>
+            • <strong>Слоты</strong>: суммарный RTP ≈ 95.7%, таблица выплат опубликована на странице игры.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Как сменить пароль или привязать email?</summary>
+          <div class="faq-body">
+            <p>Зайдите в профиль (клик по аватару). В блоке «Безопасность» нажмите «Изменить» рядом с паролем или «Привязать» рядом с email.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Где посмотреть историю операций?</summary>
+          <div class="faq-body">
+            <p>В нижней части страницы профиля. Там отображаются все пополнения, выводы и бонусы с датой, способом, суммой и статусом.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Это легально на Кипре?</summary>
+          <div class="faq-body">
+            <p>Spinly работает в соответствии с законодательством Республики Кипр и требованиями национального регулятора в сфере азартных игр. Сервис доступен только лицам старше <strong>18 лет</strong>.</p>
+            <p>Если вы находитесь в стране, где онлайн-гэмблинг запрещён, использование платформы недопустимо.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Что делать, если игра «зависла» во время раунда?</summary>
+          <div class="faq-body">
+            <p>Перезагрузите страницу. Ставка и состояние раунда хранятся на нашей стороне — вы вернётесь к моменту, на котором всё прервалось. Если проблема повторяется, напишите в поддержку.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Как установить лимиты или сделать перерыв в игре?</summary>
+          <div class="faq-body">
+            <p>В ближайших релизах в профиле появится раздел «Ответственная игра» с лимитами депозитов, ставок и самоисключением (от 24 часов до 12 месяцев).</p>
+            <p>До этого момента вы можете запросить установку лимитов или временную блокировку через поддержку в Telegram.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Как связаться с поддержкой?</summary>
+          <div class="faq-body">
+            <p>Нажмите голубую кнопку «Поддержка» в правом нижнем углу любой страницы — она ведёт прямо в наш Telegram-бот <a href="https://t.me/spinly_support" target="_blank" rel="noopener">@spinly_support</a>.</p>
+            <p>Среднее время ответа — около <strong>3 минут</strong> в рабочее время и до 30 минут ночью.</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // FAQ accordion click sound
+    document.querySelectorAll(".faq-item").forEach(item => {
+      item.addEventListener("toggle", () => {
+        if (window.SFX) SFX.click();
+      });
+    });
+  </script>
+</body>
+</html>

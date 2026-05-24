@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <!-- Hero -->
+    <section class="profile-hero">
+      <div class="profile-card-main">
+        <div class="avatar-lg" id="avatar-lg">U</div>
+        <div class="profile-info">
+          <h1 id="prof-login">user</h1>
+          <div class="meta">
+            <div>На Spinly с <span id="prof-since">—</span></div>
+            <div>Email: <span class="email-status none" id="prof-email">не привязан</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-balance-card">
+        <div class="label">Текущий баланс</div>
+        <div class="value" id="prof-balance">€ 0</div>
+        <div class="actions">
+          <button class="btn primary" data-modal="deposit">Пополнить</button>
+          <button class="btn" data-modal="withdraw">Вывести</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="profile-grid">
+      <div class="profile-card">
+        <h2>Безопасность</h2>
+        <div class="profile-row">
+          <div>
+            <div class="row-label">Пароль</div>
+            <div class="row-value">••••••••</div>
+          </div>
+          <button class="btn" data-modal="password">Изменить</button>
+        </div>
+        <div class="profile-row">
+          <div>
+            <div class="row-label">Email</div>
+            <div class="row-value" id="email-row-value">не привязан</div>
+          </div>
+          <button class="btn" data-modal="email" id="email-btn">Привязать</button>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <h2>Кошелёк</h2>
+        <div class="profile-row">
+          <div>
+            <div class="row-label">Пополнить баланс</div>
+            <div class="row-value">Visa · Mastercard · Crypto</div>
+          </div>
+          <button class="btn primary" data-modal="deposit">Пополнить</button>
+        </div>
+        <div class="profile-row">
+          <div>
+            <div class="row-label">Вывод средств</div>
+            <div class="row-value">от €10, до 1 рабочего дня</div>
+          </div>
+          <button class="btn" data-modal="withdraw">Вывести</button>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <h2>Промокоды</h2>
+        <div id="promo-active-slot"></div>
+        <form class="promo-form" id="form-promo">
+          <input type="text" name="code" placeholder="Введите код" maxlength="20" autocomplete="off">
+          <button class="btn primary" type="submit">Активировать</button>
+        </form>
+        <div class="error" id="err-promo" style="margin-top: 10px;"></div>
+        <div class="promo-used" id="promo-used-slot"></div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <h2 class="section-title">История операций</h2>
+    <div class="tx-list" id="tx-list">
+      <div class="tx-empty">История пока пуста</div>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+
+  <!-- ============ MODALS ============ -->
+
+  <!-- Password -->
+  <div class="modal-overlay" id="modal-password">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 class="modal-title">Сменить пароль</h3>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <form id="form-password" class="modal-body">
+        <div class="error" id="err-password"></div>
+        <div class="field">
+          <label>Старый пароль</label>
+          <input type="password" name="old" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label>Новый пароль</label>
+          <input type="password" name="new" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="field">
+          <label>Подтвердите пароль</label>
+          <input type="password" name="new2" autocomplete="new-password" required minlength="4">
+        </div>
+        <button class="btn primary full" type="submit">Сменить пароль</button>
+      </form>
+      <div class="modal-success" id="ok-password">
+        <div class="check">✓</div>
+        <div class="text">Пароль обновлён</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email -->
+  <div class="modal-overlay" id="modal-email">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 class="modal-title" id="email-modal-title">Привязать email</h3>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <form id="form-email" class="modal-body">
+        <div class="error" id="err-email"></div>
+        <div class="field">
+          <label>Адрес email</label>
+          <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+        <button class="btn primary full" type="submit">Сохранить</button>
+      </form>
+      <div class="modal-success" id="ok-email">
+        <div class="check">✓</div>
+        <div class="text">Email сохранён</div>
+        <div class="sub">Письмо подтверждения отправлено</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deposit -->
+  <div class="modal-overlay" id="modal-deposit">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 class="modal-title">Пополнение баланса</h3>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <form id="form-deposit" class="modal-body">
+        <div class="error" id="err-deposit"></div>
+
+        <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Способ оплаты</label>
+        <div class="pm-grid" data-pm-grid="deposit">
+          <div class="pm-opt active" data-method="card">
+            <div class="pm-icon">💳</div>
+            <div class="pm-name">Карта</div>
+          </div>
+          <div class="pm-opt" data-method="crypto">
+            <div class="pm-icon">₿</div>
+            <div class="pm-name">Crypto</div>
+          </div>
+          <div class="pm-opt" data-method="bank">
+            <div class="pm-icon">🏦</div>
+            <div class="pm-name">Банк</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Сумма (€)</label>
+          <input type="number" name="amount" min="5" max="10000" step="1" placeholder="от 5 до 10 000" required>
+          <div class="amount-chips">
+            <button type="button" data-amt="50">€50</button>
+            <button type="button" data-amt="100">€100</button>
+            <button type="button" data-amt="250">€250</button>
+            <button type="button" data-amt="500">€500</button>
+            <button type="button" data-amt="1000">€1 000</button>
+          </div>
+        </div>
+        <button class="btn primary full" type="submit">Пополнить</button>
+      </form>
+      <div class="modal-success" id="ok-deposit">
+        <div class="check">✓</div>
+        <div class="text" id="ok-deposit-text">Баланс пополнен</div>
+        <div class="sub">Средства зачислены мгновенно</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw -->
+  <div class="modal-overlay" id="modal-withdraw">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 class="modal-title">Вывод средств</h3>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <form id="form-withdraw" class="modal-body">
+        <div class="error" id="err-withdraw"></div>
+
+        <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Способ вывода</label>
+        <div class="pm-grid" data-pm-grid="withdraw">
+          <div class="pm-opt active" data-method="card">
+            <div class="pm-icon">💳</div>
+            <div class="pm-name">Карта</div>
+          </div>
+          <div class="pm-opt" data-method="crypto">
+            <div class="pm-icon">₿</div>
+            <div class="pm-name">Crypto</div>
+          </div>
+          <div class="pm-opt" data-method="bank">
+            <div class="pm-icon">🏦</div>
+            <div class="pm-name">Банк</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Сумма (€)</label>
+          <input type="number" name="amount" min="10" step="1" placeholder="минимум 10" required>
+          <div class="amount-chips">
+            <button type="button" data-amt="50">€50</button>
+            <button type="button" data-amt="100">€100</button>
+            <button type="button" data-amt="500">€500</button>
+            <button type="button" data-amt="max">Всё</button>
+          </div>
+        </div>
+        <button class="btn primary full" type="submit">Запросить вывод</button>
+      </form>
+      <div class="modal-success" id="ok-withdraw">
+        <div class="check">✓</div>
+        <div class="text" id="ok-withdraw-text">Заявка создана</div>
+        <div class="sub">Средства поступят в течение 1 рабочего дня</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    // ---------- Profile rendering ----------
+    const methodLabel = {
+      card: "Банковская карта",
+      crypto: "Криптовалюта",
+      bank: "Банковский перевод",
+      welcome: "Welcome bonus",
+    };
+    const typeLabel = {
+      deposit: "Пополнение",
+      withdraw: "Вывод средств",
+      bonus: "Бонус",
+    };
+    const typeIcon = {
+      deposit: "↓",
+      withdraw: "↑",
+      bonus: "★",
+    };
+
+    function renderProfile() {
+      const u = currentUser();
+      if (!u) return;
+      document.getElementById("avatar-lg").textContent = u.login[0].toUpperCase();
+      document.getElementById("prof-login").textContent = u.login;
+      document.getElementById("prof-since").textContent =
+        new Date(u.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+
+      const emailEl = document.getElementById("prof-email");
+      const emailRow = document.getElementById("email-row-value");
+      const emailBtn = document.getElementById("email-btn");
+      const emailModalTitle = document.getElementById("email-modal-title");
+      if (u.email) {
+        emailEl.textContent = u.email;
+        emailEl.classList.remove("none");
+        emailRow.textContent = u.email;
+        emailRow.classList.remove("muted");
+        emailBtn.textContent = "Изменить";
+        emailModalTitle.textContent = "Изменить email";
+      } else {
+        emailEl.textContent = "не привязан";
+        emailEl.classList.add("none");
+        emailRow.textContent = "не привязан";
+        emailRow.classList.add("muted");
+        emailBtn.textContent = "Привязать";
+        emailModalTitle.textContent = "Привязать email";
+      }
+
+      document.getElementById("prof-balance").textContent = "€ " + fmt(u.balance);
+      renderTransactions();
+      renderPromo();
+    }
+
+    function renderPromo() {
+      const u = currentUser();
+      const activeSlot = document.getElementById("promo-active-slot");
+      const usedSlot = document.getElementById("promo-used-slot");
+      const active = getActivePromo();
+
+      if (active) {
+        activeSlot.innerHTML = `
+          <div class="promo-active">
+            <div>
+              <div class="label-code">${active.code}</div>
+              <div class="label-desc">${active.description} · применится при следующем пополнении</div>
+            </div>
+            <button class="promo-cancel" id="promo-cancel-btn">Отменить</button>
+          </div>
+        `;
+        document.getElementById("promo-cancel-btn").addEventListener("click", () => {
+          clearPromo();
+          renderPromo();
+          if (window.SFX) SFX.click();
+        });
+      } else {
+        activeSlot.innerHTML = "";
+      }
+
+      const used = (u && u.promosUsed) || [];
+      if (used.length) {
+        usedSlot.innerHTML = `Использованы: ${used.map(c => `<span class="used-code">${c}</span>`).join("")}`;
+      } else {
+        usedSlot.innerHTML = "";
+      }
+    }
+
+    function renderTransactions() {
+      const list = document.getElementById("tx-list");
+      const txs = getTransactions();
+      if (!txs.length) {
+        list.innerHTML = '<div class="tx-empty">История пока пуста</div>';
+        return;
+      }
+      list.innerHTML = txs.map(tx => {
+        const positive = tx.amount > 0;
+        const sign = positive ? "+" : "−";
+        const amount = Math.abs(tx.amount);
+        const method = methodLabel[tx.method] || tx.method || "";
+        const title = tx.note || typeLabel[tx.type] || tx.type;
+        return `
+          <div class="tx-item">
+            <div class="tx-icon ${tx.type}">${typeIcon[tx.type] || "•"}</div>
+            <div class="tx-body">
+              <div class="tx-title">${title}</div>
+              <div class="tx-sub">${fmtDate(tx.createdAt)}${method ? " · " + method : ""}</div>
+            </div>
+            <div class="tx-amount ${positive ? "pos" : "neg"}">${sign}€${fmt(amount)}</div>
+            <span class="tx-status">${tx.status}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    renderProfile();
+
+    // ---------- Modal mechanics ----------
+    function openModal(name) {
+      const m = document.getElementById("modal-" + name);
+      if (!m) return;
+      // Reset form / success blocks
+      m.querySelectorAll(".modal-success").forEach(s => s.classList.remove("show"));
+      m.querySelectorAll(".modal-body").forEach(b => b.style.display = "");
+      m.querySelectorAll(".error").forEach(e => e.classList.remove("show"));
+      m.querySelectorAll("form").forEach(f => f.reset());
+      m.classList.add("show");
+      if (window.SFX) SFX.click();
+    }
+    function closeModal(modal) {
+      modal.classList.remove("show");
+    }
+    document.querySelectorAll("[data-modal]").forEach(btn => {
+      btn.addEventListener("click", () => openModal(btn.dataset.modal));
+    });
+    document.querySelectorAll(".modal-overlay").forEach(ov => {
+      ov.addEventListener("click", (e) => {
+        if (e.target === ov) closeModal(ov);
+      });
+      ov.querySelector("[data-close]").addEventListener("click", () => closeModal(ov));
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        document.querySelectorAll(".modal-overlay.show").forEach(closeModal);
+      }
+    });
+
+    // ---------- Payment method selectors ----------
+    document.querySelectorAll(".pm-grid").forEach(grid => {
+      grid.addEventListener("click", e => {
+        const opt = e.target.closest(".pm-opt");
+        if (!opt) return;
+        grid.querySelectorAll(".pm-opt").forEach(o => o.classList.toggle("active", o === opt));
+        if (window.SFX) SFX.click();
+      });
+    });
+
+    function selectedMethod(modalName) {
+      const grid = document.querySelector(`.pm-grid[data-pm-grid="${modalName}"]`);
+      const active = grid && grid.querySelector(".pm-opt.active");
+      return active ? active.dataset.method : "card";
+    }
+
+    function showError(formId, msg) {
+      const el = document.getElementById("err-" + formId);
+      el.textContent = msg;
+      el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+      if (window.SFX) SFX.lose();
+    }
+    function showSuccess(modalName) {
+      const m = document.getElementById("modal-" + modalName);
+      m.querySelectorAll(".modal-body").forEach(b => b.style.display = "none");
+      const s = document.getElementById("ok-" + modalName);
+      s.classList.add("show");
+      if (window.SFX) SFX.win();
+      setTimeout(() => closeModal(m), 1800);
+    }
+
+    // ---------- Quick amount chips ----------
+    document.querySelectorAll(".amount-chips").forEach(chip => {
+      chip.addEventListener("click", e => {
+        const b = e.target.closest("button[data-amt]");
+        if (!b) return;
+        const input = chip.closest(".field").querySelector("input");
+        if (b.dataset.amt === "max") {
+          input.value = Math.floor((currentUser()?.balance) || 0);
+        } else {
+          input.value = b.dataset.amt;
+        }
+        if (window.SFX) SFX.click();
+      });
+    });
+
+    // ---------- Form handlers ----------
+    document.getElementById("form-password").addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        if (fd.get("new") !== fd.get("new2")) throw new Error("Пароли не совпадают");
+        changePassword(fd.get("old"), fd.get("new"));
+        showSuccess("password");
+      } catch (ex) { showError("password", ex.message); }
+    });
+
+    document.getElementById("form-email").addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        setEmail(fd.get("email"));
+        showSuccess("email");
+        setTimeout(renderProfile, 100);
+      } catch (ex) { showError("email", ex.message); }
+    });
+
+    document.getElementById("form-deposit").addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const res = deposit(fd.get("amount"), selectedMethod("deposit"));
+        const msg = res.bonus > 0
+          ? `Пополнено на €${fmt(res.amount)} + бонус €${fmt(res.bonus)} (${res.promo})`
+          : `Баланс пополнен на €${fmt(res.amount)}`;
+        document.getElementById("ok-deposit-text").textContent = msg;
+        showSuccess("deposit");
+        renderHeader(); flashBalance();
+        setTimeout(renderProfile, 100);
+        confetti(res.bonus > 0 ? 100 : 60);
+      } catch (ex) { showError("deposit", ex.message); }
+    });
+
+    document.getElementById("form-withdraw").addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const amt = withdraw(fd.get("amount"), selectedMethod("withdraw"));
+        document.getElementById("ok-withdraw-text").textContent = `Заявка на €${fmt(amt)} создана`;
+        showSuccess("withdraw");
+        renderHeader(); flashBalance();
+        setTimeout(renderProfile, 100);
+      } catch (ex) { showError("withdraw", ex.message); }
+    });
+
+    // ---------- Promo form ----------
+    document.getElementById("form-promo").addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const errEl = document.getElementById("err-promo");
+      errEl.classList.remove("show");
+      try {
+        const promo = applyPromo(fd.get("code"));
+        e.target.reset();
+        renderPromo();
+        if (window.SFX) SFX.win();
+        confetti(40);
+        errEl.classList.remove("show");
+      } catch (ex) {
+        errEl.textContent = ex.message;
+        void errEl.offsetWidth;
+        errEl.classList.add("show");
+        if (window.SFX) SFX.lose();
+      }
+    });
+  </script>
+</body>
+</html>

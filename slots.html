@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Слоты — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Слоты</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Три барабана. Три одинаковых символа — выигрыш по таблице.
+      Чем реже символ, тем больше множитель.
+    </p>
+
+    <div class="game-layout">
+      <!-- Controls -->
+      <aside class="panel">
+        <h2>Параметры</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input class="field-input" type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <button class="btn primary full" id="spin-btn">Крутить</button>
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Таблица выплат</h2>
+        <div class="paytable">
+          <table>
+            <thead>
+              <tr><th>Символ</th><th style="text-align:right;">×3</th></tr>
+            </thead>
+            <tbody id="paytable-body"></tbody>
+          </table>
+        </div>
+      </aside>
+
+      <!-- Stage -->
+      <section>
+        <div class="slots-stage">
+          <div class="reels">
+            <div class="reel" id="reel-0"><div class="reel-inner">🎰</div></div>
+            <div class="reel" id="reel-1"><div class="reel-inner">🎰</div></div>
+            <div class="reel" id="reel-2"><div class="reel-inner">🎰</div></div>
+          </div>
+          <div style="color: var(--muted); font-size: 13px; text-align: center;">
+            Удачи!
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    // Symbols with weights and 3-of-a-kind payouts.
+    // Designed for ~96% RTP.
+    const SYMBOLS = [
+      { s: "🍒", weight: 35, x3:   9 },
+      { s: "🍋", weight: 25, x3:  15 },
+      { s: "🍊", weight: 20, x3:  25 },
+      { s: "🔔", weight: 12, x3:  50 },
+      { s: "💎", weight:  6, x3: 200 },
+      { s: "7️⃣", weight:  2, x3: 1000 },
+    ];
+    const TOTAL_WEIGHT = SYMBOLS.reduce((s, x) => s + x.weight, 0);
+
+    const betInput = document.getElementById("bet");
+    const spinBtn = document.getElementById("spin-btn");
+    const resultEl = document.getElementById("result");
+    const reels = [
+      document.getElementById("reel-0"),
+      document.getElementById("reel-1"),
+      document.getElementById("reel-2"),
+    ];
+    const paytableBody = document.getElementById("paytable-body");
+
+    // Render paytable
+    paytableBody.innerHTML = SYMBOLS
+      .slice().sort((a, b) => b.x3 - a.x3)
+      .map(x => `<tr><td style="font-size:18px;">${x.s} ${x.s} ${x.s}</td><td>×${x.x3}</td></tr>`)
+      .join("");
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    function pickSymbol() {
+      let r = Math.random() * TOTAL_WEIGHT;
+      for (const sym of SYMBOLS) {
+        r -= sym.weight;
+        if (r <= 0) return sym;
+      }
+      return SYMBOLS[SYMBOLS.length - 1];
+    }
+
+    function spin() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите корректную ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      updateBalance(-bet);
+      renderHeader();
+      flashBalance();
+      if (window.SFX) SFX.spinStart();
+
+      const finalSymbols = [pickSymbol(), pickSymbol(), pickSymbol()];
+
+      // Animation: spin reels with random symbols, then settle.
+      spinBtn.disabled = true;
+      betInput.disabled = true;
+      reels.forEach(r => {
+        r.classList.add("spinning");
+        r.classList.remove("win");
+      });
+
+      const tickIntervals = reels.map((r, i) => setInterval(() => {
+        r.querySelector(".reel-inner").textContent = pickSymbol().s;
+        if (window.SFX && i === 0) SFX.spinTick();
+      }, 60));
+
+      // Stop reels one by one
+      reels.forEach((r, i) => {
+        setTimeout(() => {
+          clearInterval(tickIntervals[i]);
+          r.classList.remove("spinning");
+          r.querySelector(".reel-inner").textContent = finalSymbols[i].s;
+          if (window.SFX) SFX.reelStop();
+          if (i === reels.length - 1) settle(bet, finalSymbols);
+        }, 700 + i * 400);
+      });
+    }
+
+    function settle(bet, syms) {
+      const allSame = syms[0].s === syms[1].s && syms[1].s === syms[2].s;
+      if (allSame) {
+        const payout = bet * syms[0].x3;
+        updateBalance(payout);
+        renderHeader();
+        flashBalance();
+        reels.forEach(r => r.classList.add("win"));
+        const profit = payout - bet;
+        const bigWin = syms[0].x3 >= 25;
+        if (window.SFX) SFX.win(bigWin);
+        if (bigWin) confetti(Math.min(60 + syms[0].x3, 200));
+        setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) — ${syms[0].s}${syms[0].s}${syms[0].s} ×${syms[0].x3}`, "win");
+      } else {
+        if (window.SFX) SFX.lose();
+        setResult(`Ставка €${fmt(bet)} не сыграла. Попробуйте ещё.`, "lose");
+      }
+      spinBtn.disabled = false;
+      betInput.disabled = false;
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const mode = b.dataset.bet;
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (mode === "max") v = u.balance;
+        else v = Math.max(1, Math.floor(v * Number(mode)));
+        betInput.value = v;
+      });
+    });
+
+    spinBtn.addEventListener("click", spin);
+  </script>
+</body>
+</html>

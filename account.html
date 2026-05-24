@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Аккаунт — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <div class="tabs">
+        <div class="tab active" data-tab="login">Вход</div>
+        <div class="tab" data-tab="register">Регистрация</div>
+      </div>
+
+      <div class="error" id="err"></div>
+
+      <form id="login-form">
+        <div class="field">
+          <label>Логин</label>
+          <input type="text" name="login" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label>Пароль</label>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn primary full" type="submit">Войти</button>
+      </form>
+
+      <form id="register-form" style="display: none;">
+        <div class="field">
+          <label>Логин</label>
+          <input type="text" name="login" autocomplete="username" required minlength="3">
+        </div>
+        <div class="field">
+          <label>Пароль</label>
+          <input type="password" name="password" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="field">
+          <label>Повторите пароль</label>
+          <input type="password" name="password2" autocomplete="new-password" required minlength="4">
+        </div>
+        <button class="btn primary full" type="submit">Создать аккаунт</button>
+      </form>
+
+      <div class="legal">
+        Регистрируясь, вы подтверждаете, что вам исполнилось 18 лет
+        и вы согласны с правилами площадки.
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const tabs = document.querySelectorAll(".tab");
+    const loginForm = document.getElementById("login-form");
+    const regForm = document.getElementById("register-form");
+    const err = document.getElementById("err");
+
+    function showError(msg) {
+      err.textContent = msg;
+      err.classList.remove("show");
+      void err.offsetWidth;
+      err.classList.add("show");
+      if (window.SFX) SFX.lose();
+    }
+    function clearError() { err.classList.remove("show"); }
+
+    function switchTab(name) {
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      loginForm.style.display = name === "login" ? "" : "none";
+      regForm.style.display = name === "register" ? "" : "none";
+      clearError();
+      if (window.SFX) SFX.click();
+    }
+    tabs.forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("tab") === "register") switchTab("register");
+    if (currentUser()) location.href = "index.html";
+
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      clearError();
+      const fd = new FormData(loginForm);
+      try {
+        loginUser(fd.get("login"), fd.get("password"));
+        if (window.SFX) SFX.win();
+        location.href = "index.html";
+      } catch (ex) { showError(ex.message); }
+    });
+
+    regForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      clearError();
+      const fd = new FormData(regForm);
+      if (fd.get("password") !== fd.get("password2")) {
+        return showError("Пароли не совпадают");
+      }
+      try {
+        registerUser(fd.get("login"), fd.get("password"));
+        if (window.SFX) SFX.win();
+        location.href = "index.html";
+      } catch (ex) { showError(ex.message); }
+    });
+  </script>
+</body>
+</html>
