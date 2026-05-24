@@ -2106,7 +2106,13 @@ footer.site .links a:hover { color: var(--gold); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  flex-shrink: 0;
+}
+.tg-support .tg-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: #fff;
 }
 @keyframes tgIn {
   from { opacity: 0; transform: translateY(12px); }
