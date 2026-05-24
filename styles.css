@@ -405,12 +405,12 @@ nav.menu .nav-bonus:hover {
   background: conic-gradient(
     #5cd29a 0deg 45deg,
     #f5c542 45deg 90deg,
-    #38bdf8 90deg 135deg,
-    #ff5fa2 135deg 180deg,
+    #ff5fa2 90deg 135deg,
+    #38bdf8 135deg 180deg,
     #5cd29a 180deg 225deg,
     #f5c542 225deg 270deg,
-    #38bdf8 270deg 315deg,
-    #ff5fa2 315deg 360deg
+    #ff5fa2 270deg 315deg,
+    #38bdf8 315deg 360deg
   );
   box-shadow:
     0 0 40px rgba(245,197,66,0.4),
@@ -428,13 +428,14 @@ nav.menu .nav-bonus:hover {
 }
 .wheel-label {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-origin: 0 0;
+  /* top, left, transform set inline by JS */
   font-weight: 800;
-  font-size: 22px;
+  font-size: 17px;
   color: #fff;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.65);
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1;
 }
 .wheel-center {
   position: absolute;
@@ -1818,4 +1819,155 @@ footer.site .links a:hover { color: var(--gold); }
 @media (prefers-reduced-motion: reduce) {
   .orb { animation: none; }
   .logo .mark .ring { animation: none; }
+}
+
+/* ============================================================
+   Mobile responsive
+   ============================================================ */
+@media (max-width: 760px) {
+  .container { padding: 16px; }
+
+  /* Header */
+  header.site { font-size: 13px; }
+  header .row {
+    padding: 10px 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .logo { font-size: 18px; gap: 8px; }
+  .logo .mark { width: 28px; height: 28px; }
+  nav.menu {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+    padding: 4px 0 6px;
+    scrollbar-width: none;
+  }
+  nav.menu::-webkit-scrollbar { display: none; }
+  nav.menu a { white-space: nowrap; font-size: 13px; padding: 4px 0; }
+  nav.menu .nav-home,
+  nav.menu .nav-bonus { padding: 5px 10px; font-size: 12px; }
+  nav.menu .nav-divider { display: none; }
+  .user-box { gap: 6px; }
+  .balance { padding: 6px 10px; font-size: 12px; }
+  .user-pill { padding: 3px 10px 3px 3px; font-size: 12px; gap: 6px; }
+  .user-pill .avatar-sm { width: 22px; height: 22px; font-size: 11px; }
+  .user-pill .user-handle { display: none; }
+  .icon-btn { width: 32px; height: 32px; font-size: 14px; }
+  .btn { padding: 8px 14px; font-size: 13px; }
+  .btn.full { padding: 10px 14px; }
+
+  /* Hero */
+  .hero {
+    padding: 24px 22px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .hero h1 { font-size: 30px; }
+  .hero p { font-size: 14px; }
+  .hero-anim { height: 240px; order: -1; }
+  .anim-stage { width: 220px; height: 220px; transform: scale(0.85); transform-origin: center; }
+  .promo-chip { font-size: 12px; padding: 5px 5px 5px 12px; }
+  .promo-chip .code { padding: 3px 9px; font-size: 12px; }
+
+  /* Section */
+  .section-title { font-size: 20px; margin: 28px 0 14px; }
+  .games { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .game-thumb { height: 110px; font-size: 44px; }
+  .game-info { padding: 12px; }
+  .game-info h3 { font-size: 14px; }
+  .game-info p { font-size: 12px; }
+
+  /* Game pages */
+  .game-layout { grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+  .panel { padding: 18px; }
+  .board { padding: 12px; gap: 6px; max-width: 100%; }
+  .tile { font-size: 22px; border-radius: 8px; }
+  .slots-stage, .dice-stage { padding: 18px; }
+  .reels { gap: 8px; padding: 10px; }
+  .reel { height: 90px; font-size: 44px; }
+  .roll-display .roll-value { font-size: 56px; }
+
+  /* Profile */
+  .profile-hero { grid-template-columns: 1fr; margin-top: 16px; gap: 14px; }
+  .profile-card-main {
+    padding: 22px;
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+  }
+  .avatar-lg { width: 68px; height: 68px; font-size: 30px; }
+  .profile-info h1 { font-size: 22px; }
+  .profile-info .meta { font-size: 12px; }
+  .profile-balance-card { padding: 20px; }
+  .profile-balance-card .value { font-size: 26px; }
+  .profile-grid { grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+  .profile-card, .vip-card { padding: 18px; }
+  .profile-row { flex-wrap: wrap; gap: 8px; }
+  .profile-row .btn { flex-shrink: 0; }
+
+  /* Transactions */
+  .tx-item { grid-template-columns: 36px 1fr auto; padding: 10px 12px; gap: 10px; }
+  .tx-status { display: none; }
+  .tx-body .tx-title { font-size: 13px; }
+  .tx-body .tx-sub { font-size: 11px; }
+  .tx-amount { font-size: 14px; }
+
+  /* Modals */
+  .modal { padding: 22px; max-width: 100%; }
+  .modal-title { font-size: 18px; }
+  .pm-grid { gap: 6px; }
+  .pm-opt { padding: 10px 6px; }
+  .pm-opt .pm-icon { font-size: 18px; }
+
+  /* Wheel */
+  .wheel-page { margin: 24px auto; padding: 0 12px; }
+  .wheel-page h1 { font-size: 28px; }
+  .wheel-container { width: 280px; height: 280px; }
+  .wheel-label { font-size: 14px; }
+  .wheel-center { width: 56px; height: 56px; margin: -28px 0 0 -28px; }
+  .wheel-pointer { border-left-width: 12px; border-right-width: 12px; border-top-width: 22px; }
+
+  /* Legal pages */
+  .legal-page { margin: 20px auto; }
+  .legal-page .legal-title { font-size: 26px; }
+  .legal-page section h2 { font-size: 16px; }
+  .legal-page p, .legal-page li { font-size: 13px; }
+  .faq-item summary { font-size: 14px; padding: 14px 16px; }
+  .faq-item .faq-body { padding: 0 16px 16px; font-size: 13px; }
+
+  /* Auth */
+  .auth-wrap { padding: 30px 16px; }
+  .auth-card { padding: 24px; border-radius: 14px; }
+
+  /* TG support button */
+  .tg-support {
+    right: 14px;
+    bottom: 14px;
+    padding: 8px 14px 8px 10px;
+    font-size: 12px;
+  }
+  .tg-support .tg-icon { width: 22px; height: 22px; }
+
+  /* Footer */
+  footer.site { padding: 22px 16px 22px; }
+  footer.site .links { gap: 12px; font-size: 12px; margin-bottom: 10px; }
+
+  /* Mission card */
+  .mission { grid-template-columns: 1fr; }
+  .mission .m-reward { flex-direction: row; align-items: center; justify-content: space-between; }
+}
+
+@media (max-width: 420px) {
+  .games { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 26px; }
+  .wheel-container { width: 240px; height: 240px; }
+  .wheel-label { font-size: 13px; }
+  .ref-stats { grid-template-columns: 1fr; }
+  .row-2 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
 }

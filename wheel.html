@@ -39,23 +39,30 @@
     const statusEl = document.getElementById("status");
     const resultSlot = document.getElementById("result-slot");
 
-    // Render labels around the wheel
+    // Render labels around the wheel.
+    // Each label's CENTER lands at the segment center on a circle.
+    // Element is positioned via top/left (with translate -50% -50% centering),
+    // then rotated by the segment angle so it reads radially outward.
     function renderLabels() {
       labels.innerHTML = "";
-      const radius = 140; // distance from center for label
+      const stageSize = labels.getBoundingClientRect().width || 360;
+      const radius = stageSize * 0.34;   // ~34% of wheel size
       WHEEL_PRIZES.forEach((p, i) => {
-        const angle = (i * 45) + 22.5;       // center of each segment
+        const angle = (i * 45) + 22.5;       // segment center, 0 = top, clockwise
         const rad = (angle - 90) * Math.PI / 180;
         const x = Math.cos(rad) * radius;
         const y = Math.sin(rad) * radius;
         const el = document.createElement("div");
         el.className = "wheel-label";
-        el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${angle}deg)`;
+        el.style.top  = `calc(50% + ${y}px)`;
+        el.style.left = `calc(50% + ${x}px)`;
+        el.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
         el.textContent = p.label;
         labels.appendChild(el);
       });
     }
     renderLabels();
+    window.addEventListener("resize", renderLabels);
 
     let currentRotation = 0;
     let countdownTimer = null;
@@ -71,18 +78,19 @@
     function refreshStatus() {
       const status = canSpinWheel();
       if (status.ok) {
-        statusEl.innerHTML = `Доступно: <span class="countdown">сейчас</span>`;
+        if (status.extra > 0) {
+          statusEl.innerHTML = `Доступно <span class="countdown">${status.extra} бонусное вращение</span>`;
+        } else {
+          statusEl.innerHTML = `Доступно: <span class="countdown">сейчас</span>`;
+        }
         spinBtn.disabled = false;
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
       } else {
         spinBtn.disabled = true;
         const tick = () => {
           const left = status.nextAt - Date.now();
-          if (left <= 0) {
-            refreshStatus();
-          } else {
-            statusEl.innerHTML = `Следующее вращение через <span class="countdown">${fmtTimeLeft(left)}</span>`;
-          }
+          if (left <= 0) refreshStatus();
+          else statusEl.innerHTML = `Следующее вращение через <span class="countdown">${fmtTimeLeft(left)}</span>`;
         };
         tick();
         if (countdownTimer) clearInterval(countdownTimer);
@@ -93,37 +101,36 @@
 
     spinBtn.addEventListener("click", () => {
       try {
-        const { prize, index } = spinWheel();
+        const { prize, index, summary } = spinWheel();
         renderHeader(); flashBalance();
         spinBtn.disabled = true;
         resultSlot.innerHTML = "";
 
         // Animation: spin multiple turns + land on segment
-        // Segment i center is at i*45 + 22.5 degrees from top, going clockwise
-        // To land segment center under the pointer (top), wheel should rotate
-        // so that the segment angle is at 0deg (top). Wheel rotation negative direction.
         const segmentCenter = index * 45 + 22.5;
-        const baseTurns = 6 * 360;                  // 6 full turns
-        const finalAngle = baseTurns + (360 - segmentCenter);
-        currentRotation += finalAngle;
+        const baseTurns = 6 * 360;
+        const target = baseTurns + (360 - segmentCenter);
+        // Always add to existing rotation to keep continuity
+        const delta = target - (currentRotation % 360);
+        currentRotation += (delta >= 0 ? delta : delta + 360) + baseTurns;
         wheel.style.transform = `rotate(${currentRotation}deg)`;
         labels.style.transform = `rotate(${currentRotation}deg)`;
 
         if (window.SFX) {
           SFX.spinStart();
-          // ticking sounds during spin
           let t = 0;
           const tickInt = setInterval(() => {
             SFX.spinTick();
-            t += 100;
+            t += 120;
             if (t > 4000) clearInterval(tickInt);
           }, 120);
         }
 
         setTimeout(() => {
-          if (window.SFX) SFX.win(prize.amount >= 100);
-          confetti(prize.amount >= 100 ? 180 : 80);
-          resultSlot.innerHTML = `<div class="wheel-result">Вы выиграли ${prize.label}!</div>`;
+          const isBig = (prize.type === "money" && prize.amount >= 100) || prize.type !== "money";
+          if (window.SFX) SFX.win(isBig);
+          confetti(isBig ? 160 : 70);
+          resultSlot.innerHTML = `<div class="wheel-result">🎉 ${summary}</div>`;
           setTimeout(refreshStatus, 600);
         }, 4600);
       } catch (ex) {

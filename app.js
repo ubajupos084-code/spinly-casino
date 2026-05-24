@@ -15,6 +15,12 @@ const PROMOS = {
     firstDepositOnly: true,
     description: "+5% к первому пополнению",
   },
+  WHEEL10: {
+    code: "WHEEL10",
+    percent: 10,
+    firstDepositOnly: false,
+    description: "+10% к следующему пополнению",
+  },
 };
 
 // ---------- VIP levels ----------
@@ -44,16 +50,16 @@ function getLevel(xp) {
 
 // ---------- Wheel of Fortune ----------
 const WHEEL_PRIZES = [
-  { amount: 5,   label: "€5",   color: "#5cd29a" },
-  { amount: 25,  label: "€25",  color: "#f5c542" },
-  { amount: 10,  label: "€10",  color: "#38bdf8" },
-  { amount: 100, label: "€100", color: "#ff5fa2" },
-  { amount: 5,   label: "€5",   color: "#5cd29a" },
-  { amount: 50,  label: "€50",  color: "#f5c542" },
-  { amount: 15,  label: "€15",  color: "#38bdf8" },
-  { amount: 250, label: "€250", color: "#ff5fa2" },
+  { type: "money", amount: 5,    label: "€5",       color: "#5cd29a" },
+  { type: "money", amount: 25,   label: "€25",      color: "#f5c542" },
+  { type: "promo", promo: "WHEEL10", label: "+10%", color: "#ff5fa2", note: "Промокод +10% к след. пополнению" },
+  { type: "money", amount: 100,  label: "€100",     color: "#38bdf8" },
+  { type: "xp",    xp: 500,      label: "+500 XP",  color: "#5cd29a", note: "Бонусные очки опыта" },
+  { type: "money", amount: 50,   label: "€50",      color: "#f5c542" },
+  { type: "free",  label: "🎁 FREE",                color: "#ff5fa2", note: "Бонусное вращение" },
+  { type: "money", amount: 250,  label: "€250",     color: "#38bdf8" },
 ];
-const WHEEL_WEIGHTS = [25, 18, 22, 5, 25, 12, 20, 2];
+const WHEEL_WEIGHTS = [25, 18, 8, 5, 12, 12, 5, 2];
 const WHEEL_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 // ---------- Missions ----------
@@ -202,16 +208,20 @@ function trackReferralOnFirstDeposit(login, amount) {
 // ---------- Wheel of Fortune ----------
 function canSpinWheel() {
   const u = currentUser();
-  if (!u) return { ok: false, nextAt: 0 };
+  if (!u) return { ok: false, nextAt: 0, extra: 0 };
+  const extra = u.extraSpins || 0;
+  if (extra > 0) return { ok: true, nextAt: 0, extra };
   const last = u.lastWheelSpin || 0;
   const now = Date.now();
-  if (now - last < WHEEL_COOLDOWN_MS) return { ok: false, nextAt: last + WHEEL_COOLDOWN_MS };
-  return { ok: true, nextAt: 0 };
+  if (now - last < WHEEL_COOLDOWN_MS) return { ok: false, nextAt: last + WHEEL_COOLDOWN_MS, extra: 0 };
+  return { ok: true, nextAt: 0, extra: 0 };
 }
 function spinWheel() {
   const u = currentUser();
   if (!u) throw new Error("Не авторизован");
-  if (!canSpinWheel().ok) throw new Error("Уже использовано сегодня");
+  const status = canSpinWheel();
+  if (!status.ok) throw new Error("Уже использовано сегодня");
+
   const total = WHEEL_WEIGHTS.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
   let idx = 0;
@@ -221,11 +231,40 @@ function spinWheel() {
   }
   const prize = WHEEL_PRIZES[idx];
   const users = getUsers();
-  users[u.login].lastWheelSpin = Date.now();
-  saveUsers(users);
-  updateBalance(prize.amount);
-  addTransaction({ type: "bonus", amount: prize.amount, method: "wheel", note: "Колесо фортуны" });
-  return { prize, index: idx };
+
+  // Consume extra spin or set cooldown
+  if ((users[u.login].extraSpins || 0) > 0) {
+    users[u.login].extraSpins -= 1;
+  } else {
+    users[u.login].lastWheelSpin = Date.now();
+  }
+
+  // Apply prize
+  let summary = "";
+  if (prize.type === "money") {
+    saveUsers(users);
+    updateBalance(prize.amount);
+    addTransaction({ type: "bonus", amount: prize.amount, method: "wheel", note: "Колесо фортуны" });
+    summary = `Вы выиграли €${fmt(prize.amount)}`;
+  } else if (prize.type === "promo") {
+    users[u.login].pendingPromo = prize.promo;
+    saveUsers(users);
+    addTransaction({ type: "bonus", amount: 0, method: "wheel_promo",
+                     note: `Промокод ${prize.promo} активирован — +${PROMOS[prize.promo].percent}% к следующему пополнению` });
+    summary = `Промокод ${prize.promo} активирован (+${PROMOS[prize.promo].percent}% к след. депозиту)`;
+  } else if (prize.type === "xp") {
+    users[u.login].xp = (users[u.login].xp || 0) + prize.xp;
+    saveUsers(users);
+    addTransaction({ type: "bonus", amount: 0, method: "wheel_xp", note: `+${prize.xp} XP с Колеса фортуны` });
+    summary = `Получено +${prize.xp} XP`;
+  } else if (prize.type === "free") {
+    users[u.login].extraSpins = (users[u.login].extraSpins || 0) + 1;
+    saveUsers(users);
+    addTransaction({ type: "bonus", amount: 0, method: "wheel_free", note: "Бонусное вращение Колеса" });
+    summary = "Бонусное вращение! Крутите ещё раз.";
+  }
+
+  return { prize, index: idx, summary };
 }
 
 function getUsers() {
