@@ -58,14 +58,14 @@
         <div class="profile-row">
           <div>
             <div class="row-label">Пополнить баланс</div>
-            <div class="row-value">Visa · Mastercard · Crypto</div>
+            <div class="row-value">CryptoBot · Telegram</div>
           </div>
           <button class="btn primary" data-modal="deposit">Пополнить</button>
         </div>
         <div class="profile-row">
           <div>
             <div class="row-label">Вывод средств</div>
-            <div class="row-value">от €10, до 1 рабочего дня</div>
+            <div class="row-value">от €10 на @username CryptoBot</div>
           </div>
           <button class="btn" data-modal="withdraw">Вывести</button>
         </div>
@@ -175,34 +175,30 @@
     </div>
   </div>
 
-  <!-- Deposit -->
+  <!-- Deposit (CryptoBot only) -->
   <div class="modal-overlay" id="modal-deposit">
     <div class="modal modal-wide">
       <div class="modal-head">
-        <h3 class="modal-title">Пополнение баланса</h3>
+        <h3 class="modal-title">Пополнение через CryptoBot</h3>
         <button class="modal-close" data-close>×</button>
       </div>
       <form id="form-deposit" class="modal-body">
         <div class="error" id="err-deposit"></div>
 
-        <div class="demo-banner">⚠ Демо-режим: средства зачисляются мгновенно для тестирования. Реальную крипту на демо-адреса <strong>не отправляйте</strong>.</div>
-
-        <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Способ оплаты</label>
-        <div class="pm-grid pm-2col" data-pm-grid="deposit">
-          <div class="pm-opt active" data-method="crypto">
-            <div class="pm-icon">₿</div>
-            <div class="pm-name">Crypto Merchant</div>
-          </div>
-          <div class="pm-opt" data-method="cryptobot">
-            <div class="pm-icon" style="background: linear-gradient(135deg,#37BBFE,#007DBB); border-radius:50%; width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:16px;">✈</div>
-            <div class="pm-name">CryptoBot</div>
-          </div>
+        <div class="demo-banner" id="deposit-banner">
+          ⚠ Демо-режим: реальная интеграция с CryptoBot API требует серверной части (Pages Function + D1). Пока пополнение симулируется — баланс зачисляется по кнопке «Я оплатил».
         </div>
 
-        <!-- Crypto coin grid (only for crypto method) -->
-        <div class="coin-section" data-show="crypto">
-          <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Валюта</label>
-          <div class="coin-grid" data-coin-grid="deposit"></div>
+        <div class="cryptobot-method">
+          <div class="cb-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+            </svg>
+          </div>
+          <div class="cb-info">
+            <div class="cb-title">CryptoBot · Telegram</div>
+            <div class="cb-sub">USDT, TON, BTC, ETH, BNB, TRX и др. — комиссия 0%</div>
+          </div>
         </div>
 
         <div class="field">
@@ -217,11 +213,10 @@
           </div>
         </div>
 
-        <!-- Crypto invoice (shown after "Get address" click) -->
         <div class="invoice-box" id="invoice-deposit" style="display:none;"></div>
 
         <div class="invoice-actions">
-          <button class="btn primary full" type="submit" id="deposit-submit">Получить адрес</button>
+          <button class="btn primary full" type="submit" id="deposit-submit">Создать счёт</button>
         </div>
       </form>
       <div class="modal-success" id="ok-deposit">
@@ -232,43 +227,36 @@
     </div>
   </div>
 
-  <!-- Withdraw -->
+  <!-- Withdraw (CryptoBot only) -->
   <div class="modal-overlay" id="modal-withdraw">
     <div class="modal modal-wide">
       <div class="modal-head">
-        <h3 class="modal-title">Вывод средств</h3>
+        <h3 class="modal-title">Вывод через CryptoBot</h3>
         <button class="modal-close" data-close>×</button>
       </div>
       <form id="form-withdraw" class="modal-body">
         <div class="error" id="err-withdraw"></div>
 
-        <div class="demo-banner">⚠ Демо-режим: вывод симулирован. В продакшне средства будут отправлены на указанный адрес после подтверждения админом.</div>
+        <div class="demo-banner">
+          ⚠ Демо-режим: заявка создаётся, но фактический перевод требует серверной интеграции с CryptoBot Transfer API.
+        </div>
 
-        <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Способ вывода</label>
-        <div class="pm-grid pm-2col" data-pm-grid="withdraw">
-          <div class="pm-opt active" data-method="crypto">
-            <div class="pm-icon">₿</div>
-            <div class="pm-name">Crypto Merchant</div>
+        <div class="cryptobot-method">
+          <div class="cb-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+            </svg>
           </div>
-          <div class="pm-opt" data-method="cryptobot">
-            <div class="pm-icon" style="background: linear-gradient(135deg,#37BBFE,#007DBB); border-radius:50%; width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:16px;">✈</div>
-            <div class="pm-name">CryptoBot</div>
+          <div class="cb-info">
+            <div class="cb-title">CryptoBot · Telegram</div>
+            <div class="cb-sub">Средства будут отправлены на ваш аккаунт @CryptoBot</div>
           </div>
         </div>
 
-        <div class="coin-section" data-show="crypto">
-          <label class="row-label" style="font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">Валюта</label>
-          <div class="coin-grid" data-coin-grid="withdraw"></div>
-        </div>
-
-        <div class="field" data-show="crypto">
-          <label>Адрес кошелька</label>
-          <input type="text" name="address" placeholder="Ваш адрес для получения" style="font-family: ui-monospace, monospace; font-size: 12px;">
-        </div>
-
-        <div class="field" data-show="cryptobot">
+        <div class="field">
           <label>Ваш @username в Telegram</label>
-          <input type="text" name="tg_handle" placeholder="@username">
+          <input type="text" name="tg_handle" placeholder="@username" required pattern="@?[A-Za-z0-9_]{4,32}"
+                 title="Только латинские буквы, цифры и _ (4-32 символа), может начинаться с @">
         </div>
 
         <div class="field">
@@ -286,7 +274,7 @@
       <div class="modal-success" id="ok-withdraw">
         <div class="check">✓</div>
         <div class="text" id="ok-withdraw-text">Заявка создана</div>
-        <div class="sub">Средства поступят на адрес после обработки</div>
+        <div class="sub">Средства поступят на ваш @CryptoBot после обработки</div>
       </div>
     </div>
   </div>
@@ -297,27 +285,6 @@
     if (!requireAuth()) { /* redirects */ }
 
     // ---------- Profile rendering ----------
-    const COINS = [
-      { code: "BTC",        sym: "₿",  name: "Bitcoin",   rate: 0.0000095 },
-      { code: "ETH",        sym: "Ξ",  name: "Ethereum",  rate: 0.00027   },
-      { code: "USDT_TRC20", sym: "₮",  name: "USDT TRC20",rate: 1.08      },
-      { code: "USDT_ERC20", sym: "₮",  name: "USDT ERC20",rate: 1.08      },
-      { code: "TON",        sym: "💎", name: "Toncoin",   rate: 0.16      },
-      { code: "SOL",        sym: "◎",  name: "Solana",    rate: 0.0050    },
-      { code: "LTC",        sym: "Ł",  name: "Litecoin",  rate: 0.0090    },
-      { code: "DOGE",       sym: "Ð",  name: "Dogecoin",  rate: 7.5       },
-    ];
-    const MOCK_ADDRESSES = {
-      BTC:        "bc1qdemoSpinlyAddressDoNotSendRealCryptox7",
-      ETH:        "0xdEm0Sp1nlyAddre550000000000000000000000",
-      USDT_TRC20: "TDemoSpinlyAddressDoNotSendRealCryptox7",
-      USDT_ERC20: "0xdEm0Sp1nlyAddre550000000000000000000000",
-      TON:        "UQDemoSpinlyAddressDoNotSendRealCryptox7",
-      SOL:        "DemoSpinlySoLAddressDoNotSendRealCryptox7",
-      LTC:        "LdemoSpinlyAddressDoNotSendRealCryptox7",
-      DOGE:       "DdemoSpinlyAddressDoNotSendRealCryptox7",
-    };
-
     function methodLabel(m) {
       if (!m) return "";
       if (m === "welcome") return "Welcome bonus";
@@ -563,121 +530,38 @@
       }
     });
 
-    // ---------- Payment method + coin selectors ----------
-    function renderCoinGrid(target) {
-      const el = document.querySelector(`[data-coin-grid="${target}"]`);
-      if (!el) return;
-      el.innerHTML = COINS.map((c, i) => `
-        <button type="button" class="coin-opt ${i === 0 ? 'active' : ''}" data-coin="${c.code}">
-          <span class="coin-sym">${c.sym}</span>${c.code.replace('_', ' ')}
-        </button>
-      `).join("");
-      el.addEventListener("click", e => {
-        const opt = e.target.closest(".coin-opt");
-        if (!opt) return;
-        el.querySelectorAll(".coin-opt").forEach(o => o.classList.toggle("active", o === opt));
-        if (window.SFX) SFX.click();
-      });
-    }
-    renderCoinGrid("deposit");
-    renderCoinGrid("withdraw");
+    // ---------- CryptoBot deposit flow ----------
+    let depositInvoiceShown = false;
 
-    function applyMethod(modalName, method) {
-      const m = document.getElementById(`modal-${modalName}`);
-      if (!m) return;
-      m.querySelectorAll("[data-show]").forEach(el => {
-        const want = el.dataset.show.split(",").map(s => s.trim());
-        el.classList.toggle("hidden", !want.includes(method));
-      });
-    }
-
-    document.querySelectorAll(".pm-grid").forEach(grid => {
-      grid.addEventListener("click", e => {
-        const opt = e.target.closest(".pm-opt");
-        if (!opt) return;
-        grid.querySelectorAll(".pm-opt").forEach(o => o.classList.toggle("active", o === opt));
-        const modalName = grid.dataset.pmGrid;
-        applyMethod(modalName, opt.dataset.method);
-        // Reset deposit invoice if showing
-        if (modalName === "deposit") resetDepositInvoice();
-        if (window.SFX) SFX.click();
-      });
-    });
-    applyMethod("deposit", "crypto");
-    applyMethod("withdraw", "crypto");
-
-    function selectedMethod(modalName) {
-      const grid = document.querySelector(`.pm-grid[data-pm-grid="${modalName}"]`);
-      const active = grid && grid.querySelector(".pm-opt.active");
-      return active ? active.dataset.method : "crypto";
-    }
-    function selectedCoin(modalName) {
-      const grid = document.querySelector(`[data-coin-grid="${modalName}"]`);
-      const active = grid && grid.querySelector(".coin-opt.active");
-      return active ? active.dataset.coin : "BTC";
-    }
-
-    function buildInvoice(method, coin, amountEur) {
+    function buildInvoice(amountEur) {
       const wrap = document.getElementById("invoice-deposit");
-      if (method === "crypto") {
-        const c = COINS.find(x => x.code === coin);
-        const amount = (amountEur * c.rate);
-        const decimals = c.code.startsWith("USDT") ? 2 : 8;
-        const addr = MOCK_ADDRESSES[coin];
-        wrap.innerHTML = `
-          <div class="invoice-row">
-            <span class="label">Валюта</span>
-            <span class="value">${c.sym} ${c.name}</span>
-          </div>
-          <div class="invoice-row">
-            <span class="label">К оплате</span>
-            <span class="value gold">${amount.toFixed(decimals)} ${c.code.replace("_", " ")}</span>
-          </div>
-          <div class="invoice-row">
-            <span class="label">≈ EUR</span>
-            <span class="value">€ ${fmt(amountEur)}</span>
-          </div>
-          <div class="copy-row">
-            <code>${addr}</code>
-            <button type="button" class="copy-addr">Копировать</button>
-          </div>
-        `;
-      } else if (method === "cryptobot") {
-        wrap.innerHTML = `
-          <div class="invoice-row">
-            <span class="label">К оплате</span>
-            <span class="value gold">€ ${fmt(amountEur)}</span>
-          </div>
-          <a class="cryptobot-cta" href="https://t.me/CryptoBot" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
-            Открыть @CryptoBot в Telegram
-          </a>
-          <div style="font-size:12px; color: var(--muted); text-align:center; line-height:1.5;">
-            После оплаты вернитесь сюда и нажмите «Я оплатил».
-          </div>
-        `;
-      }
+      wrap.innerHTML = `
+        <div class="invoice-row">
+          <span class="label">К оплате</span>
+          <span class="value gold">€ ${fmt(amountEur)}</span>
+        </div>
+        <div class="invoice-row">
+          <span class="label">Способ</span>
+          <span class="value">CryptoBot · Telegram</span>
+        </div>
+        <a class="cryptobot-cta" href="https://t.me/CryptoBot" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+          Открыть @CryptoBot в Telegram
+        </a>
+        <div style="font-size:12px; color: var(--muted); text-align:center; line-height:1.5;">
+          После оплаты вернитесь сюда и нажмите «Я оплатил».
+        </div>
+      `;
       wrap.style.display = "block";
-      const copyBtn = wrap.querySelector(".copy-addr");
-      if (copyBtn) {
-        copyBtn.addEventListener("click", async () => {
-          const code = wrap.querySelector("code");
-          try { await navigator.clipboard.writeText(code.textContent); } catch {}
-          copyBtn.textContent = "Скопировано";
-          if (window.SFX) SFX.win();
-          setTimeout(() => copyBtn.textContent = "Копировать", 1200);
-        });
-      }
     }
 
     function resetDepositInvoice() {
-      document.getElementById("invoice-deposit").style.display = "none";
-      document.getElementById("invoice-deposit").innerHTML = "";
+      const wrap = document.getElementById("invoice-deposit");
+      if (wrap) { wrap.style.display = "none"; wrap.innerHTML = ""; }
       depositInvoiceShown = false;
       const btn = document.getElementById("deposit-submit");
-      if (btn) btn.textContent = "Получить адрес";
+      if (btn) btn.textContent = "Создать счёт";
     }
-    let depositInvoiceShown = false;
 
     function showError(formId, msg) {
       const el = document.getElementById("err-" + formId);
@@ -734,25 +618,22 @@
       e.preventDefault();
       const fd = new FormData(e.target);
       const amount = Number(fd.get("amount"));
-      const method = selectedMethod("deposit");
-      const coin = selectedCoin("deposit");
       const submitBtn = document.getElementById("deposit-submit");
 
       if (!depositInvoiceShown) {
-        // Step 1: validate and show invoice
+        // Step 1: validate and show CryptoBot invoice
         if (!(amount >= 5)) return showError("deposit", "Минимальная сумма €5");
         if (amount > 10000) return showError("deposit", "Максимум €10 000");
         const u = currentUser();
         if (!u) return showError("deposit", "Не авторизован");
-        buildInvoice(method, coin, amount);
+        buildInvoice(amount);
         depositInvoiceShown = true;
         submitBtn.textContent = "Я оплатил";
         if (window.SFX) SFX.click();
       } else {
-        // Step 2: actually credit
+        // Step 2: credit (mock — real call would verify webhook payment first)
         try {
-          const txMethod = method === "cryptobot" ? "cryptobot" : `crypto:${coin}`;
-          const res = deposit(amount, txMethod);
+          const res = deposit(amount, "cryptobot");
           const msg = res.bonus > 0
             ? `Пополнено на €${fmt(res.amount)} + бонус €${fmt(res.bonus)} (${res.promo})`
             : `Баланс пополнен на €${fmt(res.amount)}`;
@@ -769,18 +650,15 @@
     document.getElementById("form-withdraw").addEventListener("submit", e => {
       e.preventDefault();
       const fd = new FormData(e.target);
-      const method = selectedMethod("withdraw");
-      const coin = selectedCoin("withdraw");
-      const address = (fd.get("address") || fd.get("tg_handle") || "").toString().trim();
+      const handle = (fd.get("tg_handle") || "").toString().trim().replace(/^@/, "");
 
-      if (method === "crypto" && !address) return showError("withdraw", "Введите адрес кошелька");
-      if (method === "cryptobot" && !address) return showError("withdraw", "Введите ваш @username в Telegram");
+      if (!/^[A-Za-z0-9_]{4,32}$/.test(handle)) {
+        return showError("withdraw", "Введите корректный @username (4–32 латинских символа)");
+      }
 
       try {
-        const txMethod = method === "cryptobot" ? "cryptobot" : `crypto:${coin}`;
-        const amt = withdraw(fd.get("amount"), txMethod);
-        const dest = method === "cryptobot" ? `@${address.replace(/^@/, "")}` : `${address.slice(0, 8)}…${address.slice(-4)}`;
-        document.getElementById("ok-withdraw-text").textContent = `Заявка на €${fmt(amt)} → ${dest}`;
+        const amt = withdraw(fd.get("amount"), "cryptobot");
+        document.getElementById("ok-withdraw-text").textContent = `Заявка на €${fmt(amt)} → @${handle}`;
         showSuccess("withdraw");
         renderHeader(); flashBalance();
         setTimeout(renderProfile, 100);
