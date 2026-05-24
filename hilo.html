@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HiLo — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">HiLo</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Угадайте: следующая карта будет выше или ниже текущей. Множитель растёт с каждой угаданной картой.
+    </p>
+
+    <div class="game-layout">
+      <aside class="panel">
+        <h2>Раунд</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <button class="btn primary full" id="start-btn">Начать раздачу</button>
+        <button class="btn full" id="cashout-btn" style="margin-top: 10px;" disabled>Забрать выигрыш</button>
+
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Серия</h2>
+        <div class="row-2">
+          <div class="stat">
+            <div class="label">Множитель</div>
+            <div class="value gold" id="mult">1.00×</div>
+          </div>
+          <div class="stat">
+            <div class="label">Возможный выигрыш</div>
+            <div class="value green" id="potential">€ 0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Угадано</div>
+            <div class="value" id="streak">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">House edge</div>
+            <div class="value">3%</div>
+          </div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="hilo-stage">
+          <div class="hilo-card" id="card">
+            <div class="rank">?</div>
+            <div class="suit">·</div>
+          </div>
+          <div class="hilo-buttons" id="btns">
+            <button class="btn" id="higher-btn" disabled>
+              <span>↑ Выше</span>
+              <span class="mult" id="higher-mult">—</span>
+            </button>
+            <button class="btn" id="lower-btn" disabled>
+              <span>↓ Ниже</span>
+              <span class="mult" id="lower-mult">—</span>
+            </button>
+          </div>
+          <div class="hilo-stats">
+            <span class="stat-mini">Карта: <span class="v" id="card-name">—</span></span>
+            <span class="stat-mini">P(↑): <span class="v" id="higher-p">—</span></span>
+            <span class="stat-mini">P(↓): <span class="v" id="lower-p">—</span></span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const HOUSE_EDGE = 0.97;
+    const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+    const SUITS = [
+      { sym: "♠", color: "black" },
+      { sym: "♥", color: "red"   },
+      { sym: "♦", color: "red"   },
+      { sym: "♣", color: "black" },
+    ];
+
+    const betInput = document.getElementById("bet");
+    const startBtn = document.getElementById("start-btn");
+    const cashBtn  = document.getElementById("cashout-btn");
+    const resultEl = document.getElementById("result");
+    const cardEl   = document.getElementById("card");
+    const rankEl   = cardEl.querySelector(".rank");
+    const suitEl   = cardEl.querySelector(".suit");
+    const higherBtn = document.getElementById("higher-btn");
+    const lowerBtn  = document.getElementById("lower-btn");
+    const higherMultEl = document.getElementById("higher-mult");
+    const lowerMultEl  = document.getElementById("lower-mult");
+    const higherPEl = document.getElementById("higher-p");
+    const lowerPEl  = document.getElementById("lower-p");
+    const cardNameEl = document.getElementById("card-name");
+    const multEl = document.getElementById("mult");
+    const potEl  = document.getElementById("potential");
+    const streakEl = document.getElementById("streak");
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    function drawCard() {
+      const rank = Math.floor(Math.random() * 13);  // 0..12
+      const suit = SUITS[Math.floor(Math.random() * 4)];
+      return { rank, suit };
+    }
+
+    function showCard(c, animate = true) {
+      if (animate) {
+        cardEl.classList.remove("flip"); void cardEl.offsetWidth; cardEl.classList.add("flip");
+      }
+      rankEl.textContent = RANKS[c.rank];
+      suitEl.textContent = c.suit.sym;
+      cardEl.classList.remove("red", "black");
+      cardEl.classList.add(c.suit.color);
+      cardNameEl.textContent = RANKS[c.rank] + c.suit.sym;
+    }
+
+    // Probabilities: strict-higher and strict-lower (ties = loss)
+    function probHigher(rank) { return (12 - rank) / 13; }  // rank 0=A is lowest
+    function probLower(rank)  { return rank / 13; }
+
+    let state = null;
+
+    function updateButtons() {
+      if (!state || !state.active) {
+        higherBtn.disabled = true;
+        lowerBtn.disabled = true;
+        higherMultEl.textContent = "—";
+        lowerMultEl.textContent = "—";
+        higherPEl.textContent = "—";
+        lowerPEl.textContent = "—";
+        return;
+      }
+      const r = state.current.rank;
+      const pH = probHigher(r);
+      const pL = probLower(r);
+      const stepH = pH > 0 ? HOUSE_EDGE / pH : 0;
+      const stepL = pL > 0 ? HOUSE_EDGE / pL : 0;
+      higherBtn.disabled = pH === 0;
+      lowerBtn.disabled  = pL === 0;
+      higherMultEl.textContent = pH > 0 ? "×" + stepH.toFixed(2) : "—";
+      lowerMultEl.textContent  = pL > 0 ? "×" + stepL.toFixed(2) : "—";
+      higherPEl.textContent = (pH * 100).toFixed(1) + "%";
+      lowerPEl.textContent  = (pL * 100).toFixed(1) + "%";
+
+      multEl.textContent = state.mult.toFixed(2) + "×";
+      potEl.textContent  = "€ " + fmt(state.bet * state.mult);
+      streakEl.textContent = state.streak;
+    }
+
+    function startRound() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      updateBalance(-bet);
+      renderHeader(); flashBalance();
+      if (typeof onBet === "function") onBet(bet);
+
+      state = {
+        bet, mult: 1, streak: 0, active: true,
+        current: drawCard(),
+      };
+      showCard(state.current);
+      startBtn.disabled = true;
+      cashBtn.disabled = false;
+      betInput.disabled = true;
+      updateButtons();
+    }
+
+    function guess(dir) {
+      if (!state || !state.active) return;
+      const r = state.current.rank;
+      const p = dir === "higher" ? probHigher(r) : probLower(r);
+      if (p === 0) return;
+      const step = HOUSE_EDGE / p;
+
+      const next = drawCard();
+      // Ensure not same as current (treat tie as loss; allow but rare)
+      const correct = dir === "higher" ? next.rank > r : next.rank < r;
+      state.current = next;
+      showCard(next);
+
+      if (!correct) {
+        if (window.SFX) SFX.lose();
+        if (typeof onLoss === "function") onLoss({ bet: state.bet, game: "hilo" });
+        setResult(`Не угадали. Ставка €${fmt(state.bet)} сгорела.`, "lose");
+        endRound();
+        return;
+      }
+      state.mult *= step;
+      state.streak += 1;
+      if (window.SFX) SFX.gem(state.streak);
+      updateButtons();
+    }
+
+    function cashout() {
+      if (!state || !state.active) return;
+      if (state.streak === 0) {
+        updateBalance(state.bet);
+        renderHeader();
+        setResult("Раунд отменён, ставка возвращена.", "win");
+        endRound();
+        return;
+      }
+      const payout = state.bet * state.mult;
+      updateBalance(payout);
+      renderHeader(); flashBalance();
+      const profit = payout - state.bet;
+      const bigWin = state.mult >= 3;
+      if (window.SFX) SFX.win(bigWin);
+      if (bigWin) confetti(Math.min(40 + Math.floor(state.mult * 8), 180));
+      if (typeof onWin === "function") onWin({ bet: state.bet, payout, multiplier: state.mult, game: "hilo" });
+      setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) после ${state.streak} карт`, "win");
+      endRound();
+    }
+
+    function endRound() {
+      state.active = false;
+      startBtn.disabled = false;
+      cashBtn.disabled = true;
+      betInput.disabled = false;
+      higherBtn.disabled = true;
+      lowerBtn.disabled = true;
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (b.dataset.bet === "max") v = Math.floor(u.balance);
+        else v = Math.max(1, Math.floor(v * Number(b.dataset.bet)));
+        betInput.value = v;
+      });
+    });
+
+    startBtn.addEventListener("click", startRound);
+    cashBtn.addEventListener("click", cashout);
+    higherBtn.addEventListener("click", () => guess("higher"));
+    lowerBtn.addEventListener("click",  () => guess("lower"));
+  </script>
+</body>
+</html>

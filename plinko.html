@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plinko — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Plinko</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Шарик падает через ряды пегов и попадает в один из 9 множителей. RTP 99%.
+    </p>
+
+    <div class="game-layout">
+      <aside class="panel">
+        <h2>Раунд</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <button class="btn primary full" id="drop-btn">Бросить шарик</button>
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Множители</h2>
+        <div style="font-size: 12px; color: var(--muted); line-height: 1.6;">
+          Края платят больше — туда шарики попадают реже. Центр платит мало, но часто.
+        </div>
+      </aside>
+
+      <section>
+        <div class="plinko-stage">
+          <div class="plinko-board" id="board">
+            <div class="plinko-ball" id="ball" style="opacity: 0;"></div>
+          </div>
+          <div class="plinko-slots" id="slots"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const ROWS = 8;
+    const MULTIPLIERS = [5.6, 2.1, 1.1, 1.0, 0.5, 1.0, 1.1, 2.1, 5.6];
+    const board   = document.getElementById("board");
+    const ball    = document.getElementById("ball");
+    const slotsEl = document.getElementById("slots");
+    const betInput = document.getElementById("bet");
+    const dropBtn  = document.getElementById("drop-btn");
+    const resultEl = document.getElementById("result");
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    // Render slots
+    slotsEl.innerHTML = MULTIPLIERS
+      .map((m, i) => `<div class="plinko-slot" data-i="${i}">${m}×</div>`).join("");
+
+    // Render pegs
+    function renderPegs() {
+      board.querySelectorAll(".plinko-peg").forEach(e => e.remove());
+      const w = board.clientWidth;
+      const h = board.clientHeight;
+      const yStep = h / (ROWS + 2);   // leave space top + bottom
+      const yStart = yStep;
+      const xCenter = w / 2;
+      const xStep = w / (ROWS + 2);
+      for (let r = 0; r < ROWS; r++) {
+        const pegCount = r + 2;       // row 0 has 2 pegs, row 7 has 9
+        const yMid = yStart + (r + 1) * yStep;
+        for (let p = 0; p < pegCount; p++) {
+          const x = xCenter + (p - (pegCount - 1) / 2) * xStep;
+          const peg = document.createElement("div");
+          peg.className = "plinko-peg";
+          peg.style.left = x + "px";
+          peg.style.top  = yMid + "px";
+          board.appendChild(peg);
+        }
+      }
+    }
+    renderPegs();
+    window.addEventListener("resize", renderPegs);
+
+    async function drop() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      updateBalance(-bet);
+      renderHeader(); flashBalance();
+      if (typeof onBet === "function") onBet(bet);
+
+      dropBtn.disabled = true;
+      betInput.disabled = true;
+      slotsEl.querySelectorAll(".plinko-slot.hit").forEach(s => s.classList.remove("hit"));
+
+      // Random path: at each row, +0.5 or -0.5
+      const choices = Array.from({ length: ROWS }, () => Math.random() < 0.5 ? -0.5 : 0.5);
+      const sum = choices.reduce((a, b) => a + b, 0);
+      // Map sum (range -4..+4 in steps of 1) to slot 0..8
+      const slotIdx = Math.round(sum + 4);
+      const m = MULTIPLIERS[slotIdx];
+
+      // Animate ball through path
+      const w = board.clientWidth;
+      const h = board.clientHeight;
+      const yStep = h / (ROWS + 2);
+      const xStep = w / (ROWS + 2);
+      const xCenter = w / 2;
+
+      ball.style.transition = "none";
+      ball.style.left = xCenter + "px";
+      ball.style.top  = (yStep / 2) + "px";
+      ball.style.opacity = "1";
+      // Reflow
+      void ball.offsetWidth;
+      ball.style.transition = "top .22s cubic-bezier(0.5, 0, 0.5, 1), left .22s cubic-bezier(0.5, 0, 0.5, 1)";
+
+      let curOffset = 0;
+      for (let r = 0; r < ROWS; r++) {
+        curOffset += choices[r];
+        const x = xCenter + curOffset * xStep;
+        const y = yStep + (r + 1) * yStep;
+        ball.style.left = x + "px";
+        ball.style.top  = y + "px";
+        if (window.SFX) SFX.spinTick();
+        await new Promise(res => setTimeout(res, 230));
+      }
+      // Drop to slot
+      const slotEl = slotsEl.children[slotIdx];
+      const slotRect = slotEl.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const finalX = slotRect.left - boardRect.left + slotRect.width / 2;
+      ball.style.left = finalX + "px";
+      ball.style.top  = (h - 10) + "px";
+      await new Promise(res => setTimeout(res, 250));
+
+      slotEl.classList.add("hit");
+      const payout = bet * m;
+      const win = payout > bet;
+      const lossOnly = payout === 0;
+
+      if (payout > 0) {
+        updateBalance(payout);
+        renderHeader(); flashBalance();
+      }
+
+      if (win) {
+        const bigWin = m >= 5;
+        if (window.SFX) SFX.win(bigWin);
+        if (bigWin) confetti(Math.min(50 + Math.floor(m * 12), 180));
+        if (typeof onWin === "function") onWin({ bet, payout, multiplier: m, game: "plinko" });
+        setResult(`Выигрыш €${fmt(payout)} (×${m})`, "win");
+      } else if (payout > 0) {
+        // small payout (1.0x or 0.5x) — neither big win nor loss
+        if (typeof onWin === "function") onWin({ bet, payout, multiplier: m, game: "plinko" });
+        if (window.SFX) SFX.click();
+        setResult(`Возврат €${fmt(payout)} (×${m})`, payout >= bet ? "win" : "lose");
+      } else {
+        if (window.SFX) SFX.lose();
+        if (typeof onLoss === "function") onLoss({ bet, game: "plinko" });
+        setResult(`Ставка не сыграла (×${m})`, "lose");
+      }
+
+      dropBtn.disabled = false;
+      betInput.disabled = false;
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (b.dataset.bet === "max") v = Math.floor(u.balance);
+        else v = Math.max(1, Math.floor(v * Number(b.dataset.bet)));
+        betInput.value = v;
+      });
+    });
+
+    dropBtn.addEventListener("click", drop);
+  </script>
+</body>
+</html>

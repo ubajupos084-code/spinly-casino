@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crash — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Crash</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Множитель растёт от 1.00×. Заберите выигрыш до того, как самолёт упадёт.
+    </p>
+
+    <div class="game-layout">
+      <aside class="panel">
+        <h2>Раунд</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Авто-кэшаут на (×)</label>
+          <input type="number" id="auto" value="2.00" min="1.01" step="0.01" placeholder="напр. 2.00">
+        </div>
+
+        <button class="btn primary full" id="start-btn">Старт</button>
+        <button class="btn full" id="cashout-btn" style="margin-top: 10px;" disabled>Забрать выигрыш</button>
+
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">История</h2>
+        <div class="crash-history" id="history"></div>
+      </aside>
+
+      <section>
+        <div class="crash-stage">
+          <div class="crash-mult" id="mult">1.00×</div>
+          <div class="crash-status" id="status">Введите ставку и стартуйте</div>
+          <svg class="crash-graph" id="graph" viewBox="0 0 600 200" preserveAspectRatio="none">
+            <polyline id="line" points=""/>
+          </svg>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const HOUSE_EDGE = 0.99;
+    const betInput = document.getElementById("bet");
+    const autoInput = document.getElementById("auto");
+    const startBtn  = document.getElementById("start-btn");
+    const cashBtn   = document.getElementById("cashout-btn");
+    const resultEl  = document.getElementById("result");
+    const multEl    = document.getElementById("mult");
+    const statusEl  = document.getElementById("status");
+    const lineEl    = document.getElementById("line");
+    const graphEl   = document.getElementById("graph");
+    const historyEl = document.getElementById("history");
+
+    const history = [];
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    function fairCrash() {
+      // 1% instant crash for house edge, otherwise 0.99/(1-r)
+      if (Math.random() < (1 - HOUSE_EDGE)) return 1.00;
+      const r = Math.random();
+      const v = HOUSE_EDGE / (1 - r);
+      return Math.max(1.00, Math.floor(v * 100) / 100);
+    }
+
+    function pillClass(m) {
+      if (m >= 10) return "gold";
+      if (m >= 2)  return "green";
+      return "red";
+    }
+    function renderHistory() {
+      historyEl.innerHTML = history.slice(0, 12).map(m =>
+        `<span class="crash-pill ${pillClass(m)}">${m.toFixed(2)}×</span>`
+      ).join("");
+    }
+
+    let state = null;
+
+    function startRound() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const auto = Number(autoInput.value) || 0;
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      updateBalance(-bet);
+      renderHeader(); flashBalance();
+      if (typeof onBet === "function") onBet(bet);
+
+      const crashAt = fairCrash();
+      state = {
+        bet, auto, crashAt,
+        startTime: performance.now(),
+        active: true,
+        cashedAt: null,
+        points: [],
+      };
+      multEl.className = "crash-mult";
+      multEl.textContent = "1.00×";
+      lineEl.setAttribute("points", "0,200");
+      graphEl.classList.remove("crashed");
+      statusEl.textContent = "Полёт начат...";
+      startBtn.disabled = true;
+      cashBtn.disabled = false;
+      betInput.disabled = true;
+      autoInput.disabled = true;
+      if (window.SFX) SFX.spinStart();
+      requestAnimationFrame(tick);
+    }
+
+    function tick(now) {
+      if (!state || !state.active) return;
+      const t = (now - state.startTime) / 1000;
+      const mult = Math.max(1, Math.exp(t * 0.16));
+
+      // Crash?
+      if (mult >= state.crashAt) {
+        multEl.textContent = state.crashAt.toFixed(2) + "×";
+        multEl.classList.add("lose");
+        graphEl.classList.add("crashed");
+        endRound(false, state.crashAt);
+        return;
+      }
+
+      // Auto-cashout?
+      if (state.auto && mult >= state.auto && !state.cashedAt) {
+        cashout(state.auto);
+        return;
+      }
+
+      multEl.textContent = mult.toFixed(2) + "×";
+
+      // Graph point: t -> x (0..600), mult -> y (200..0, log scale)
+      const x = Math.min(600, t * 36);
+      const y = 200 - Math.min(200, Math.log(mult) * 60);
+      state.points.push([x, y]);
+      const pointsStr = state.points.map(p => p[0] + "," + p[1]).join(" ");
+      lineEl.setAttribute("points", "0,200 " + pointsStr);
+
+      requestAnimationFrame(tick);
+    }
+
+    function cashout(forcedAt) {
+      if (!state || !state.active) return;
+      state.active = false;
+      const at = forcedAt || Number(multEl.textContent);
+      state.cashedAt = at;
+      multEl.classList.add("win");
+      const payout = state.bet * at;
+      updateBalance(payout);
+      renderHeader(); flashBalance();
+      const profit = payout - state.bet;
+      const bigWin = at >= 3;
+      if (window.SFX) SFX.win(bigWin);
+      if (bigWin) confetti(Math.min(40 + Math.floor(at * 8), 180));
+      if (typeof onWin === "function") onWin({ bet: state.bet, payout, multiplier: at, game: "crash" });
+      setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) на ${at.toFixed(2)}×`, "win");
+      statusEl.textContent = "Раунд завершён";
+      finishRound(at);
+    }
+
+    function endRound(win, finalMult) {
+      if (!win) {
+        if (window.SFX) SFX.bomb();
+        if (typeof onLoss === "function") onLoss({ bet: state.bet, game: "crash" });
+        setResult(`Краш на ${finalMult.toFixed(2)}×. Ставка €${fmt(state.bet)} сгорела.`, "lose");
+        statusEl.textContent = "Самолёт упал";
+      }
+      finishRound(finalMult);
+    }
+
+    function finishRound(finalMult) {
+      history.unshift(finalMult);
+      renderHistory();
+      state.active = false;
+      startBtn.disabled = false;
+      cashBtn.disabled = true;
+      betInput.disabled = false;
+      autoInput.disabled = false;
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (b.dataset.bet === "max") v = Math.floor(u.balance);
+        else v = Math.max(1, Math.floor(v * Number(b.dataset.bet)));
+        betInput.value = v;
+      });
+    });
+
+    startBtn.addEventListener("click", startRound);
+    cashBtn.addEventListener("click", () => cashout());
+  </script>
+</body>
+</html>

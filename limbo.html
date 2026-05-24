@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limbo — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Limbo</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Установите целевой множитель и крутите. Если выпадет ≥ цели — вы выиграли.
+    </p>
+
+    <div class="game-layout">
+      <aside class="panel">
+        <h2>Раунд</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Цель (×)</label>
+          <input type="number" id="target" value="2.00" min="1.01" max="1000" step="0.01">
+        </div>
+
+        <button class="btn primary full" id="roll-btn">Крутить</button>
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Текущая ставка</h2>
+        <div class="row-2">
+          <div class="stat">
+            <div class="label">Шанс</div>
+            <div class="value" id="chance">49.50%</div>
+          </div>
+          <div class="stat">
+            <div class="label">Множитель</div>
+            <div class="value gold" id="mult-stat">2.00×</div>
+          </div>
+          <div class="stat">
+            <div class="label">Возможный выигрыш</div>
+            <div class="value green" id="potential">€ 0</div>
+          </div>
+          <div class="stat">
+            <div class="label">House edge</div>
+            <div class="value">1%</div>
+          </div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="limbo-stage">
+          <div class="limbo-result" id="result-num">—</div>
+          <div class="limbo-hint" id="hint">Нажмите «Крутить»</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const HOUSE_EDGE = 0.99;
+    const betInput = document.getElementById("bet");
+    const targetInput = document.getElementById("target");
+    const rollBtn = document.getElementById("roll-btn");
+    const resultEl = document.getElementById("result");
+    const resultNum = document.getElementById("result-num");
+    const hintEl = document.getElementById("hint");
+    const chanceEl = document.getElementById("chance");
+    const multStatEl = document.getElementById("mult-stat");
+    const potentialEl = document.getElementById("potential");
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    function calc() {
+      const target = Math.max(1.01, Number(targetInput.value) || 1.01);
+      const bet = Number(betInput.value) || 0;
+      const chance = HOUSE_EDGE / target * 100;
+      return { target, bet, chance, potential: bet * target };
+    }
+    function refresh() {
+      const { target, chance, potential } = calc();
+      chanceEl.textContent = chance.toFixed(2) + "%";
+      multStatEl.textContent = target.toFixed(2) + "×";
+      potentialEl.textContent = "€ " + fmt(potential);
+    }
+    refresh();
+
+    function fairRoll() {
+      if (Math.random() < (1 - HOUSE_EDGE)) return 1.00;
+      const r = Math.random();
+      const v = HOUSE_EDGE / (1 - r);
+      return Math.max(1.00, Math.floor(v * 100) / 100);
+    }
+
+    function roll() {
+      clearResult();
+      const { target, bet } = calc();
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+      if (!(target >= 1.01)) return setResult("Цель должна быть ≥ 1.01", "lose");
+
+      updateBalance(-bet);
+      renderHeader(); flashBalance();
+      if (typeof onBet === "function") onBet(bet);
+
+      const result = fairRoll();
+      const win = result >= target;
+      rollBtn.disabled = true;
+      betInput.disabled = true;
+      targetInput.disabled = true;
+
+      // Quick ticking animation
+      let ticks = 18;
+      resultNum.className = "limbo-result";
+      const interval = setInterval(() => {
+        const v = (1 + Math.random() * Math.max(2, target * 1.5));
+        resultNum.textContent = v.toFixed(2) + "×";
+        if (window.SFX) SFX.rollTick();
+        if (--ticks <= 0) {
+          clearInterval(interval);
+          finalize();
+        }
+      }, 45);
+
+      function finalize() {
+        resultNum.textContent = result.toFixed(2) + "×";
+        if (win) {
+          resultNum.className = "limbo-result win";
+          const payout = bet * target;
+          updateBalance(payout);
+          renderHeader(); flashBalance();
+          const profit = payout - bet;
+          const bigWin = target >= 3;
+          if (window.SFX) setTimeout(() => SFX.win(bigWin), 100);
+          if (bigWin) confetti(Math.min(40 + Math.floor(target * 8), 180));
+          if (typeof onWin === "function") onWin({ bet, payout, multiplier: target, game: "limbo" });
+          hintEl.textContent = `${result.toFixed(2)} ≥ ${target.toFixed(2)} — победа!`;
+          setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)})`, "win");
+        } else {
+          resultNum.className = "limbo-result lose";
+          if (window.SFX) setTimeout(() => SFX.lose(), 100);
+          if (typeof onLoss === "function") onLoss({ bet, game: "limbo" });
+          hintEl.textContent = `${result.toFixed(2)} < ${target.toFixed(2)} — мимо`;
+          setResult(`Ставка €${fmt(bet)} сгорела`, "lose");
+        }
+        rollBtn.disabled = false;
+        betInput.disabled = false;
+        targetInput.disabled = false;
+      }
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (b.dataset.bet === "max") v = Math.floor(u.balance);
+        else v = Math.max(1, Math.floor(v * Number(b.dataset.bet)));
+        betInput.value = v;
+        refresh();
+      });
+    });
+
+    targetInput.addEventListener("input", refresh);
+    betInput.addEventListener("input", refresh);
+    rollBtn.addEventListener("click", roll);
+  </script>
+</body>
+</html>

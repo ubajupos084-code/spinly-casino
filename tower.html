@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tower — Spinly</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="header-slot"></div>
+
+  <main class="container">
+    <h2 class="section-title">Tower</h2>
+    <p style="color: var(--muted); margin: -8px 0 0;">
+      Поднимайтесь снизу вверх. На каждом ряду — 3 клетки, одна с бомбой. Множитель растёт с каждым шагом.
+    </p>
+
+    <div class="game-layout">
+      <aside class="panel">
+        <h2>Раунд</h2>
+
+        <div class="field">
+          <label>Ставка (€)</label>
+          <input type="number" id="bet" value="10" min="1" step="1">
+          <div class="bet-bar">
+            <button class="btn" data-bet="0.5">½</button>
+            <button class="btn" data-bet="2">×2</button>
+            <button class="btn" data-bet="max">Макс</button>
+          </div>
+        </div>
+
+        <button class="btn primary full" id="start-btn">Начать восхождение</button>
+        <button class="btn full" id="cashout-btn" style="margin-top: 10px;" disabled>Забрать выигрыш</button>
+
+        <div class="result" id="result"></div>
+
+        <h2 style="margin-top: 24px;">Текущий раунд</h2>
+        <div class="row-2">
+          <div class="stat">
+            <div class="label">Множитель</div>
+            <div class="value gold" id="mult">1.00×</div>
+          </div>
+          <div class="stat">
+            <div class="label">Возможный выигрыш</div>
+            <div class="value green" id="potential">€ 0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Ряд</div>
+            <div class="value" id="row-num">0 / 8</div>
+          </div>
+          <div class="stat">
+            <div class="label">След. ×</div>
+            <div class="value" id="next-mult">1.49×</div>
+          </div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="tower-stage" id="tower"></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-slot"></div>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if (!requireAuth()) { /* redirects */ }
+
+    const ROWS = 8;
+    const COLS = 3;
+    const SAFE = 2;
+    const HOUSE_EDGE = 0.99;
+    const MULT_PER_ROW = HOUSE_EDGE * COLS / SAFE;  // 1.485
+
+    const tower = document.getElementById("tower");
+    const betInput = document.getElementById("bet");
+    const startBtn = document.getElementById("start-btn");
+    const cashBtn  = document.getElementById("cashout-btn");
+    const resultEl = document.getElementById("result");
+    const multEl = document.getElementById("mult");
+    const potEl  = document.getElementById("potential");
+    const rowEl  = document.getElementById("row-num");
+    const nextEl = document.getElementById("next-mult");
+
+    function setResult(text, type) {
+      resultEl.className = "result show " + type;
+      resultEl.textContent = text;
+    }
+    function clearResult() { resultEl.className = "result"; resultEl.textContent = ""; }
+
+    function multAt(row) { return row === 0 ? 1 : Math.pow(MULT_PER_ROW, row); }
+
+    let state = null;
+
+    function buildTower() {
+      tower.innerHTML = "";
+      // Top row first (row index ROWS-1) visually
+      for (let r = ROWS - 1; r >= 0; r--) {
+        const row = document.createElement("div");
+        row.className = "tower-row future";
+        row.dataset.row = r;
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement("div");
+          cell.className = "tower-cell locked";
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.addEventListener("click", () => pickCell(r, c));
+          row.appendChild(cell);
+        }
+        const m = document.createElement("div");
+        m.className = "tower-mult";
+        m.textContent = (r + 1) + "× → " + multAt(r + 1).toFixed(2) + "×";
+        row.appendChild(m);
+        tower.appendChild(row);
+      }
+    }
+
+    function updateStats() {
+      const cur = state ? state.row : 0;
+      multEl.textContent = multAt(cur).toFixed(2) + "×";
+      potEl.textContent = "€ " + fmt(state && state.active ? state.bet * multAt(cur) : 0);
+      rowEl.textContent = cur + " / " + ROWS;
+      nextEl.textContent = state && state.active && cur < ROWS
+        ? multAt(cur + 1).toFixed(2) + "×"
+        : "—";
+    }
+
+    function markRows() {
+      const rowsEls = tower.querySelectorAll(".tower-row");
+      rowsEls.forEach(re => {
+        const r = Number(re.dataset.row);
+        re.classList.remove("current", "passed", "future");
+        if (r < state.row) re.classList.add("passed");
+        else if (r === state.row) re.classList.add("current");
+        else re.classList.add("future");
+        re.querySelectorAll(".tower-cell").forEach(ce => {
+          if (r === state.row) ce.classList.remove("locked");
+          else ce.classList.add("locked");
+        });
+      });
+    }
+
+    function startRound() {
+      clearResult();
+      const bet = Number(betInput.value);
+      const u = currentUser();
+      if (!u) return;
+      if (!(bet > 0)) return setResult("Введите ставку", "lose");
+      if (bet > u.balance) return setResult("Недостаточно средств", "lose");
+
+      updateBalance(-bet);
+      renderHeader(); flashBalance();
+      if (typeof onBet === "function") onBet(bet);
+
+      // Generate bomb per row
+      const bombs = Array.from({ length: ROWS }, () => Math.floor(Math.random() * COLS));
+
+      state = {
+        bet, bombs, row: 0, active: true,
+      };
+
+      buildTower();
+      markRows();
+      updateStats();
+      startBtn.disabled = true;
+      cashBtn.disabled = false;
+      betInput.disabled = true;
+    }
+
+    function pickCell(r, c) {
+      if (!state || !state.active || r !== state.row) return;
+      const cell = tower.querySelector(`.tower-cell[data-row="${r}"][data-col="${c}"]`);
+      if (state.bombs[r] === c) {
+        cell.classList.add("bomb");
+        cell.textContent = "💣";
+        revealRowBombs(r);
+        if (window.SFX) SFX.bomb();
+        if (typeof onLoss === "function") onLoss({ bet: state.bet, game: "tower", special: "bomb" });
+        setResult(`Бомба на ряду ${r + 1}. Ставка €${fmt(state.bet)} сгорела.`, "lose");
+        endRound(false);
+        return;
+      }
+      cell.classList.add("gem");
+      cell.textContent = "💎";
+      if (window.SFX) SFX.gem(r + 1);
+      state.row = r + 1;
+      markRows();
+      updateStats();
+      if (state.row === ROWS) {
+        // Reached top — auto cashout
+        cashout();
+      }
+    }
+
+    function revealRowBombs(r) {
+      // Reveal current row bombs visually
+      const cells = tower.querySelectorAll(`.tower-cell[data-row="${r}"]`);
+      cells.forEach(ce => {
+        const col = Number(ce.dataset.col);
+        if (state.bombs[r] === col && !ce.classList.contains("bomb")) {
+          ce.classList.add("bomb");
+          ce.textContent = "💣";
+        }
+        ce.classList.add("locked");
+      });
+      // Lock all other rows
+      tower.querySelectorAll(".tower-cell").forEach(ce => ce.classList.add("locked"));
+    }
+
+    function cashout() {
+      if (!state || !state.active) return;
+      if (state.row === 0) {
+        // Refund
+        updateBalance(state.bet);
+        renderHeader();
+        setResult("Раунд отменён, ставка возвращена.", "win");
+        endRound(true, false);
+        return;
+      }
+      const m = multAt(state.row);
+      const payout = state.bet * m;
+      updateBalance(payout);
+      renderHeader(); flashBalance();
+      const profit = payout - state.bet;
+      const bigWin = m >= 3;
+      if (window.SFX) SFX.win(bigWin);
+      if (bigWin) confetti(Math.min(40 + Math.floor(m * 8), 180));
+      if (typeof onWin === "function") onWin({ bet: state.bet, payout, multiplier: m, game: "tower" });
+      setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) на ${m.toFixed(2)}×`, "win");
+      endRound(true);
+    }
+
+    function endRound(win, addRefund = true) {
+      state.active = false;
+      tower.querySelectorAll(".tower-cell").forEach(ce => ce.classList.add("locked"));
+      startBtn.disabled = false;
+      cashBtn.disabled = true;
+      betInput.disabled = false;
+      updateStats();
+    }
+
+    document.querySelectorAll(".bet-bar .btn").forEach(b => {
+      b.addEventListener("click", () => {
+        const u = currentUser();
+        if (!u) return;
+        let v = Number(betInput.value) || 0;
+        if (b.dataset.bet === "max") v = Math.floor(u.balance);
+        else v = Math.max(1, Math.floor(v * Number(b.dataset.bet)));
+        betInput.value = v;
+      });
+    });
+
+    startBtn.addEventListener("click", startRound);
+    cashBtn.addEventListener("click", cashout);
+
+    buildTower();
+    updateStats();
+  </script>
+</body>
+</html>

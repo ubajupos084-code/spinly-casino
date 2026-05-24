@@ -85,9 +85,11 @@
       const u = currentUser();
       const el = document.getElementById("games-grid");
       const card = (game) => {
+        const featuredClass = game.featured ? " featured" : "";
+        const hotTag = game.hot ? '<span class="hot-tag">HOT</span>' : "";
         if (game.soon) {
           return `
-            <div class="game-card soon">
+            <div class="game-card soon${featuredClass}">
               <div class="game-thumb ${game.cls} soon">${game.icon}</div>
               <div class="game-info">
                 <h3>${game.title} <span style="color: var(--muted); font-size: 12px;">(скоро)</span></h3>
@@ -97,32 +99,42 @@
         }
         if (!u) {
           return `
-            <a class="game-card locked" href="account.html?tab=register" title="Создайте аккаунт, чтобы играть">
+            <a class="game-card locked${featuredClass}" href="account.html?tab=register" title="Создайте аккаунт, чтобы играть">
               <div class="game-thumb ${game.cls}">${game.icon}</div>
               <div class="game-info">
-                <h3>${game.title}</h3>
+                <h3>${game.title}${hotTag}</h3>
                 <p>Доступно после регистрации</p>
               </div>
             </a>`;
         }
         return `
-          <a class="game-card" href="${game.href}">
+          <a class="game-card${featuredClass}" href="${game.href}">
             <div class="game-thumb ${game.cls}">${game.icon}</div>
             <div class="game-info">
-              <h3>${game.title}</h3>
+              <h3>${game.title}${hotTag}</h3>
               <p>${game.desc}</p>
             </div>
           </a>`;
       };
 
       el.innerHTML = [
-        { title: "Mines",     cls: "mines", icon: "💣💎", href: "mines.html",
-          desc: "Открывайте поля с алмазами. Главное — не задеть бомбу." },
-        { title: "Слоты",     cls: "slots", icon: "🎰",   href: "slots.html",
-          desc: "Три барабана. Соберите комбинацию из одинаковых символов." },
-        { title: "Dice",      cls: "dice",  icon: "🎲",   href: "dice.html",
-          desc: "Выберите число и угадайте, выпадет больше или меньше." },
-        { title: "Blackjack", cls: "bj",    icon: "🃏",   soon: true,
+        { title: "Crash",     cls: "crash",  icon: "🚀",    href: "crash.html",
+          desc: "Множитель растёт. Заберите выигрыш до краха.", featured: true, hot: true },
+        { title: "Mines",     cls: "mines",  icon: "💣💎",  href: "mines.html",
+          desc: "Открывайте поля. Главное — не задеть бомбу." },
+        { title: "Plinko",    cls: "plinko", icon: "🟣",    href: "plinko.html",
+          desc: "Шарик падает через ряды пегов в слот с множителем." },
+        { title: "Слоты",     cls: "slots",  icon: "🎰",    href: "slots.html",
+          desc: "Три барабана. Соберите одинаковые символы." },
+        { title: "Limbo",     cls: "limbo",  icon: "🎯",    href: "limbo.html",
+          desc: "Установите цель и крутите. Поймайте множитель." },
+        { title: "Dice",      cls: "dice",   icon: "🎲",    href: "dice.html",
+          desc: "Угадайте: больше или меньше выпадет." },
+        { title: "Tower",     cls: "tower",  icon: "🗼",    href: "tower.html",
+          desc: "Поднимайтесь по башне, обходя бомбы." },
+        { title: "HiLo",      cls: "hilo",   icon: "🂡",    href: "hilo.html",
+          desc: "Следующая карта будет выше или ниже?" },
+        { title: "Blackjack", cls: "bj",     icon: "🃏",    soon: true,
           desc: "Карточная классика — в разработке." },
       ].map(card).join("");
     }
