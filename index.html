@@ -44,9 +44,26 @@
       const u = currentUser();
       const el = document.getElementById("hero-content");
       if (u) {
+        const { current, next } = getLevel(u.xp || 0);
+        const xp = u.xp || 0;
+        const start = current.xp;
+        const target = next ? next.xp : current.xp;
+        const pct = next ? Math.min(100, ((xp - start) / (target - start)) * 100) : 100;
+        const xpLine = next
+          ? `${xp.toLocaleString("ru-RU")} <span style="opacity:.5">/</span> ${target.toLocaleString("ru-RU")} XP`
+          : `${xp.toLocaleString("ru-RU")} XP · MAX`;
         el.innerHTML = `
           <h1>Добро пожаловать,<br><span>${u.login}</span></h1>
           <p>Все игры открыты. Удачных раундов и крупных множителей сегодня.</p>
+          <a class="hero-vip" href="profile.html" title="Открыть профиль">
+            <span class="vip-tag">
+              <span class="dot" style="background: ${current.color}; color: ${current.color}"></span>
+              ${current.name}
+            </span>
+            <span class="vip-bar"><span class="fill" style="width: ${pct}%"></span></span>
+            <span class="vip-xp">${xpLine}</span>
+            <span class="vip-cb">+${current.cashback}%</span>
+          </a>
         `;
       } else {
         el.innerHTML = `

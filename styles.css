@@ -600,6 +600,82 @@ nav.menu .nav-bonus:hover {
 }
 .hero .actions { display: flex; gap: 12px; flex-wrap: wrap; animation: fadeUp 0.7s 0.2s ease both; }
 
+/* VIP widget in hero (logged-in) */
+.hero-vip {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 8px 10px 16px;
+  background: rgba(245,197,66,0.07);
+  border: 1px solid rgba(245,197,66,0.28);
+  border-radius: 999px;
+  max-width: 480px;
+  width: 100%;
+  margin-top: 24px;
+  font-size: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s ease, border-color .15s ease, transform .12s ease;
+  animation: fadeUp 0.6s 0.25s ease both;
+}
+.hero-vip:hover {
+  background: rgba(245,197,66,0.12);
+  border-color: rgba(245,197,66,0.5);
+  color: inherit;
+  transform: translateY(-1px);
+}
+.hero-vip .vip-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text);
+}
+.hero-vip .vip-tag .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+.hero-vip .vip-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 50px;
+}
+.hero-vip .vip-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--pink));
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+.hero-vip .vip-xp {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hero-vip .vip-cb {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(245,197,66,0.18);
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .hero-vip { font-size: 11px; padding: 8px 6px 8px 12px; gap: 10px; }
+  .hero-vip .vip-xp { display: none; }
+}
+
 /* Promo chip in hero */
 .promo-chip {
   display: inline-flex;
