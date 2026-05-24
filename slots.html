@@ -121,6 +121,7 @@
       updateBalance(-bet);
       renderHeader();
       flashBalance();
+      if (typeof onBet === "function") onBet(bet);
       if (window.SFX) SFX.spinStart();
 
       const finalSymbols = [pickSymbol(), pickSymbol(), pickSymbol()];
@@ -160,11 +161,14 @@
         reels.forEach(r => r.classList.add("win"));
         const profit = payout - bet;
         const bigWin = syms[0].x3 >= 25;
+        const isJackpot = syms[0].s === "7️⃣";
         if (window.SFX) SFX.win(bigWin);
         if (bigWin) confetti(Math.min(60 + syms[0].x3, 200));
+        if (typeof onWin === "function") onWin({ bet, payout, multiplier: syms[0].x3, game: "slots", special: isJackpot ? "777" : null });
         setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) — ${syms[0].s}${syms[0].s}${syms[0].s} ×${syms[0].x3}`, "win");
       } else {
         if (window.SFX) SFX.lose();
+        if (typeof onLoss === "function") onLoss({ bet, game: "slots" });
         setResult(`Ставка €${fmt(bet)} не сыграла. Попробуйте ещё.`, "lose");
       }
       spinBtn.disabled = false;

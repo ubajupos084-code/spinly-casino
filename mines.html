@@ -160,6 +160,7 @@
       // Take bet
       updateBalance(-bet);
       refreshHeaderBalance();
+      if (typeof onBet === "function") onBet(bet);
       if (window.SFX) SFX.spinStart();
 
       // Place bombs
@@ -207,6 +208,7 @@
       tile.classList.add("revealed", "gem");
       tile.textContent = "💎";
       if (window.SFX) SFX.gem(state.opened.size);
+      if (typeof onGemOpened === "function") onGemOpened(state.opened.size);
 
       state.multiplier = multiplierFor(state.opened.size, state.minesCount);
       updateRoundStats();
@@ -256,9 +258,11 @@
         const bigWin = state.multiplier >= 3;
         if (window.SFX) SFX.win(bigWin);
         if (bigWin) confetti(Math.min(40 + Math.floor(state.multiplier * 6), 160));
+        if (typeof onWin === "function") onWin({ bet: state.bet, payout, multiplier: state.multiplier, game: "mines" });
         setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) при множителе ${state.multiplier.toFixed(2)}×`, "win");
       } else {
         if (window.SFX) SFX.lose();
+        if (typeof onLoss === "function") onLoss({ bet: state.bet, game: "mines", special: "bomb" });
         setResult(`Бомба! Ставка €${fmt(state.bet)} сгорела.`, "lose");
       }
       finishRound();

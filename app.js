@@ -17,6 +17,217 @@ const PROMOS = {
   },
 };
 
+// ---------- VIP levels ----------
+const LEVELS = [
+  { lv: 1,  name: "Bronze",       xp: 0,     cashback: 0.5, color: "#cd7f32" },
+  { lv: 2,  name: "Silver I",     xp: 500,   cashback: 1.0, color: "#c0c0c0" },
+  { lv: 3,  name: "Silver II",    xp: 1500,  cashback: 1.5, color: "#c0c0c0" },
+  { lv: 4,  name: "Gold I",       xp: 3000,  cashback: 2.0, color: "#f5c542" },
+  { lv: 5,  name: "Gold II",      xp: 6000,  cashback: 2.5, color: "#f5c542" },
+  { lv: 6,  name: "Platinum I",   xp: 10000, cashback: 3.0, color: "#e5e4e2" },
+  { lv: 7,  name: "Platinum II",  xp: 16000, cashback: 4.0, color: "#e5e4e2" },
+  { lv: 8,  name: "Diamond I",    xp: 25000, cashback: 5.0, color: "#38bdf8" },
+  { lv: 9,  name: "Diamond II",   xp: 40000, cashback: 6.0, color: "#38bdf8" },
+  { lv: 10, name: "Spinly Elite", xp: 60000, cashback: 8.0, color: "#ff5fa2" },
+];
+
+function getLevel(xp) {
+  xp = Number(xp) || 0;
+  let cur = LEVELS[0];
+  let next = null;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (xp >= LEVELS[i].xp) cur = LEVELS[i];
+    else { next = LEVELS[i]; break; }
+  }
+  return { current: cur, next };
+}
+
+// ---------- Wheel of Fortune ----------
+const WHEEL_PRIZES = [
+  { amount: 5,   label: "€5",   color: "#5cd29a" },
+  { amount: 25,  label: "€25",  color: "#f5c542" },
+  { amount: 10,  label: "€10",  color: "#38bdf8" },
+  { amount: 100, label: "€100", color: "#ff5fa2" },
+  { amount: 5,   label: "€5",   color: "#5cd29a" },
+  { amount: 50,  label: "€50",  color: "#f5c542" },
+  { amount: 15,  label: "€15",  color: "#38bdf8" },
+  { amount: 250, label: "€250", color: "#ff5fa2" },
+];
+const WHEEL_WEIGHTS = [25, 18, 22, 5, 25, 12, 20, 2];
+const WHEEL_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+// ---------- Missions ----------
+const MISSIONS = [
+  { id: "first_deposit", title: "Первые шаги",       desc: "Сделайте первое пополнение",                reward: 5,  target: 1,
+    check: u => (u.transactions || []).some(t => t.type === "deposit") ? 1 : 0 },
+  { id: "first_win",     title: "Удачный старт",     desc: "Выиграйте первый раунд",                    reward: 5,  target: 1,
+    check: u => (u.stats?.wins || 0) > 0 ? 1 : 0 },
+  { id: "bet_1000",      title: "На уровне",         desc: "Поставьте суммарно €1 000",                 reward: 25, target: 1000, isMoney: true,
+    check: u => Math.min(u.stats?.totalBet || 0, 1000) },
+  { id: "five_gems",     title: "Diamond Hands",     desc: "Откройте 5 алмазов в одном раунде Mines",   reward: 15, target: 5,
+    check: u => Math.min(u.stats?.maxGemsInRound || 0, 5) },
+  { id: "triple_seven",  title: "Triple Seven",      desc: "Соберите 7️⃣ 7️⃣ 7️⃣ в слотах",              reward: 50, target: 1,
+    check: u => (u.stats?.slotJackpots || 0) > 0 ? 1 : 0 },
+  { id: "vip_silver",    title: "Серебряный статус", desc: "Достигните уровня Silver II",                reward: 30, target: 1,
+    check: u => getLevel(u.xp || 0).current.lv >= 3 ? 1 : 0 },
+  { id: "big_win",       title: "Big Win",           desc: "Выиграйте €500 в одном раунде",             reward: 50, target: 500, isMoney: true,
+    check: u => Math.min(u.stats?.biggestWin || 0, 500) },
+  { id: "first_referral",title: "Inviter",           desc: "Пригласите первого друга",                  reward: 25, target: 1,
+    check: u => (u.referrals || []).length > 0 ? 1 : 0 },
+];
+
+// ---------- Helpers: stats, xp, hooks ----------
+function bumpStat(key, by = 1) {
+  const u = currentUser();
+  if (!u) return;
+  const users = getUsers();
+  if (!users[u.login].stats) users[u.login].stats = {};
+  users[u.login].stats[key] = (users[u.login].stats[key] || 0) + by;
+  saveUsers(users);
+}
+function setMaxStat(key, value) {
+  const u = currentUser();
+  if (!u) return;
+  const users = getUsers();
+  if (!users[u.login].stats) users[u.login].stats = {};
+  users[u.login].stats[key] = Math.max(users[u.login].stats[key] || 0, value);
+  saveUsers(users);
+}
+function addXp(delta) {
+  const u = currentUser();
+  if (!u) return;
+  const users = getUsers();
+  users[u.login].xp = (users[u.login].xp || 0) + delta;
+  saveUsers(users);
+}
+
+function onBet(amount) {
+  bumpStat("totalBet", amount);
+  bumpStat("rounds", 1);
+  addXp(Math.floor(amount));
+}
+function onWin({ bet = 0, payout = 0, multiplier = 1, game, special }) {
+  const profit = payout - bet;
+  bumpStat("wins", 1);
+  bumpStat("totalWon", payout);
+  setMaxStat("biggestWin", profit);
+  setMaxStat("biggestMultiplier", multiplier);
+  if (game === "slots" && special === "777") bumpStat("slotJackpots", 1);
+}
+function onLoss({ bet = 0, game, special }) {
+  if (game === "mines" && special === "bomb") bumpStat("bombs", 1);
+  const u = currentUser();
+  if (!u) return;
+  const lvl = getLevel(u.xp || 0).current;
+  const cashback = Math.round(bet * (lvl.cashback / 100) * 100) / 100;
+  if (cashback > 0) {
+    updateBalance(cashback);
+    addTransaction({ type: "bonus", amount: cashback, method: "cashback",
+                     note: `Cashback ${lvl.cashback}% · ${lvl.name}` });
+  }
+}
+function onGemOpened(level) { setMaxStat("maxGemsInRound", level); }
+
+// ---------- Missions ----------
+function getMissionsStatus() {
+  const u = currentUser();
+  if (!u) return [];
+  const claimed = u.missionsClaimed || [];
+  return MISSIONS.map(m => {
+    const progress = m.check(u);
+    return {
+      ...m,
+      progress,
+      completed: progress >= m.target,
+      claimed: claimed.includes(m.id),
+    };
+  });
+}
+function claimMission(id) {
+  const u = currentUser();
+  if (!u) throw new Error("Не авторизован");
+  const m = MISSIONS.find(x => x.id === id);
+  if (!m) throw new Error("Миссия не найдена");
+  if ((u.missionsClaimed || []).includes(id)) throw new Error("Уже получено");
+  if (m.check(u) < m.target) throw new Error("Условие не выполнено");
+  const users = getUsers();
+  if (!users[u.login].missionsClaimed) users[u.login].missionsClaimed = [];
+  users[u.login].missionsClaimed.push(id);
+  saveUsers(users);
+  updateBalance(m.reward);
+  addTransaction({ type: "bonus", amount: m.reward, method: "mission", note: `Миссия: ${m.title}` });
+  return m;
+}
+
+// ---------- Referrals ----------
+function genReferralCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+function findUserByReferralCode(code) {
+  if (!code) return null;
+  const users = getUsers();
+  for (const login in users) {
+    if (users[login].referralCode === code) return login;
+  }
+  return null;
+}
+function trackReferralOnFirstDeposit(login, amount) {
+  const users = getUsers();
+  const u = users[login];
+  if (!u || !u.referredBy) return;
+  const inviterLogin = findUserByReferralCode(u.referredBy);
+  if (!inviterLogin || inviterLogin === login) return;
+  const inviter = users[inviterLogin];
+  if (!inviter.referrals) inviter.referrals = [];
+  if (inviter.referrals.includes(login)) return;
+  inviter.referrals.push(login);
+  const bonus = Math.min(amount * 0.1, 100);
+  inviter.balance = (inviter.balance || 0) + bonus;
+  if (!inviter.transactions) inviter.transactions = [];
+  inviter.transactions.unshift({
+    id: txId(),
+    type: "bonus",
+    amount: bonus,
+    method: "referral",
+    status: "completed",
+    createdAt: Date.now(),
+    note: `Реферал ${login} (+10% от €${fmt(amount)})`,
+  });
+  saveUsers(users);
+}
+
+// ---------- Wheel of Fortune ----------
+function canSpinWheel() {
+  const u = currentUser();
+  if (!u) return { ok: false, nextAt: 0 };
+  const last = u.lastWheelSpin || 0;
+  const now = Date.now();
+  if (now - last < WHEEL_COOLDOWN_MS) return { ok: false, nextAt: last + WHEEL_COOLDOWN_MS };
+  return { ok: true, nextAt: 0 };
+}
+function spinWheel() {
+  const u = currentUser();
+  if (!u) throw new Error("Не авторизован");
+  if (!canSpinWheel().ok) throw new Error("Уже использовано сегодня");
+  const total = WHEEL_WEIGHTS.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  let idx = 0;
+  for (let i = 0; i < WHEEL_WEIGHTS.length; i++) {
+    r -= WHEEL_WEIGHTS[i];
+    if (r <= 0) { idx = i; break; }
+  }
+  const prize = WHEEL_PRIZES[idx];
+  const users = getUsers();
+  users[u.login].lastWheelSpin = Date.now();
+  saveUsers(users);
+  updateBalance(prize.amount);
+  addTransaction({ type: "bonus", amount: prize.amount, method: "wheel", note: "Колесо фортуны" });
+  return { prize, index: idx };
+}
+
 function getUsers() {
   try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }
   catch { return {}; }
@@ -30,12 +241,25 @@ function currentUser() {
   return users[login] ? { login, ...users[login] } : null;
 }
 
-function registerUser(login, password) {
+function registerUser(login, password, opts = {}) {
   login = login.trim().toLowerCase();
   if (login.length < 3) throw new Error("Логин должен быть не короче 3 символов");
   if (password.length < 4) throw new Error("Пароль должен быть не короче 4 символов");
   const users = getUsers();
   if (users[login]) throw new Error("Пользователь с таким логином уже существует");
+
+  // Validate referral code if provided
+  let referredBy = null;
+  if (opts.referredBy) {
+    const code = String(opts.referredBy).trim().toUpperCase();
+    if (code) {
+      const inviter = findUserByReferralCode(code);
+      if (!inviter) throw new Error("Реферальный код не найден");
+      if (inviter === login) throw new Error("Нельзя пригласить себя");
+      referredBy = code;
+    }
+  }
+
   const now = Date.now();
   users[login] = {
     password,
@@ -51,6 +275,13 @@ function registerUser(login, password) {
       createdAt: now,
       note: "Приветственный бонус",
     }],
+    xp: 0,
+    stats: {},
+    missionsClaimed: [],
+    lastWheelSpin: 0,
+    referralCode: genReferralCode(),
+    referredBy,
+    referrals: [],
   };
   saveUsers(users);
   localStorage.setItem(SESSION_KEY, login);
@@ -138,6 +369,7 @@ function deposit(amount, method) {
 
   const u = currentUser();
   const users = getUsers();
+  const wasFirstDeposit = !(u.transactions || []).some(t => t.type === "deposit");
 
   // Apply pending promo (if any & still valid)
   let bonus = 0;
@@ -166,6 +398,11 @@ function deposit(amount, method) {
     delete users[u.login].pendingPromo;
     saveUsers(users);
   }
+
+  // XP for deposits: 5 XP per €1
+  addXp(Math.floor(amount * 5));
+
+  if (wasFirstDeposit) trackReferralOnFirstDeposit(u.login, amount);
 
   return { amount, bonus, promo: promoCode };
 }
@@ -284,6 +521,8 @@ function renderHeader() {
           <a href="mines.html">Mines</a>
           <a href="slots.html">Слоты</a>
           <a href="dice.html">Dice</a>
+          <span class="nav-divider"></span>
+          <a href="wheel.html" class="nav-bonus">🎁 Бонусы</a>
         </nav>
         <div class="user-box">
           <button class="icon-btn mute-btn" title="Звук" aria-label="Звук">${muteIcon}</button>

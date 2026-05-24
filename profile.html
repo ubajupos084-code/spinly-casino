@@ -81,7 +81,35 @@
         <div class="error" id="err-promo" style="margin-top: 10px;"></div>
         <div class="promo-used" id="promo-used-slot"></div>
       </div>
+
+      <div class="vip-card" id="vip-card"></div>
+
+      <div class="profile-card">
+        <h2>Реферальная программа</h2>
+        <div style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">
+          Делитесь кодом — за каждого друга, который пополнит баланс,
+          вы получаете <strong style="color: var(--gold);">10% бонусом</strong> (до €100).
+        </div>
+        <div class="ref-code-display" id="ref-code">—</div>
+        <div class="ref-link-row">
+          <input type="text" id="ref-link" readonly>
+          <button class="btn" id="ref-copy-btn">Копировать</button>
+        </div>
+        <div class="ref-stats">
+          <div class="ref-stat">
+            <div class="label">Приглашено</div>
+            <div class="value" id="ref-count">0</div>
+          </div>
+          <div class="ref-stat">
+            <div class="label">Заработано</div>
+            <div class="value" id="ref-earned">€0</div>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <h2 class="section-title">Миссии</h2>
+    <div class="mission-list" id="mission-list"></div>
 
     <!-- History -->
     <h2 class="section-title">История операций</h2>
@@ -294,6 +322,99 @@
       document.getElementById("prof-balance").textContent = "€ " + fmt(u.balance);
       renderTransactions();
       renderPromo();
+      renderVip();
+      renderReferrals();
+      renderMissions();
+    }
+
+    function renderVip() {
+      const u = currentUser();
+      if (!u) return;
+      const { current, next } = getLevel(u.xp || 0);
+      const xp = u.xp || 0;
+      const target = next ? next.xp : current.xp;
+      const start = current.xp;
+      const progressPct = next
+        ? Math.min(100, ((xp - start) / (target - start)) * 100)
+        : 100;
+      document.getElementById("vip-card").innerHTML = `
+        <h2>VIP-уровень</h2>
+        <div class="vip-head">
+          <span class="vip-badge">
+            <span class="dot" style="background: ${current.color}"></span>
+            ${current.name}
+          </span>
+          <span class="vip-cashback">Cashback на проигрыш: <strong>${current.cashback}%</strong></span>
+        </div>
+        <div class="vip-bar"><div class="fill" style="width: ${progressPct}%"></div></div>
+        <div class="vip-progress">
+          <span>${xp.toLocaleString("ru-RU")} XP</span>
+          ${next ? `<span>до <span class="max">${next.name}</span> — ${(target - xp).toLocaleString("ru-RU")} XP</span>`
+                 : `<span class="max">Максимальный уровень</span>`}
+        </div>
+      `;
+    }
+
+    function renderReferrals() {
+      const u = currentUser();
+      if (!u) return;
+      const code = u.referralCode || "—";
+      document.getElementById("ref-code").textContent = code;
+      const link = `${location.origin}${location.pathname.replace(/profile\.html$/, "")}account.html?ref=${code}`;
+      document.getElementById("ref-link").value = link;
+      document.getElementById("ref-count").textContent = (u.referrals || []).length;
+      const earned = (u.transactions || [])
+        .filter(t => t.method === "referral")
+        .reduce((s, t) => s + (t.amount || 0), 0);
+      document.getElementById("ref-earned").textContent = "€" + fmt(earned);
+    }
+
+    function renderMissions() {
+      const list = document.getElementById("mission-list");
+      const missions = getMissionsStatus();
+      list.innerHTML = missions.map(m => {
+        const pct = Math.min(100, (m.progress / m.target) * 100);
+        const progressTxt = m.isMoney
+          ? `€${fmt(m.progress)} / €${fmt(m.target)}`
+          : `${m.progress} / ${m.target}`;
+        let actionHtml;
+        if (m.claimed) {
+          actionHtml = `<span class="m-claimed">Получено</span>`;
+        } else if (m.completed) {
+          actionHtml = `<button class="m-claim" data-mission="${m.id}">Забрать</button>`;
+        } else {
+          actionHtml = `<button class="m-claim" disabled>В процессе</button>`;
+        }
+        return `
+          <div class="mission ${m.completed ? "completed" : ""} ${m.claimed ? "claimed" : ""}">
+            <div>
+              <div class="m-title">${m.title}</div>
+              <div class="m-desc">${m.desc}</div>
+              <div class="m-bar"><div class="fill" style="width: ${pct}%"></div></div>
+              <div class="m-progress">${progressTxt}</div>
+            </div>
+            <div class="m-reward">
+              <span class="amount">+€${fmt(m.reward)}</span>
+              ${actionHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      list.querySelectorAll("[data-mission]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          try {
+            claimMission(btn.dataset.mission);
+            renderProfile();
+            renderHeader(); flashBalance();
+            confetti(60);
+            if (window.SFX) SFX.win();
+          } catch (ex) {
+            if (window.SFX) SFX.lose();
+            alert(ex.message);
+          }
+        });
+      });
     }
 
     function renderPromo() {
@@ -481,6 +602,17 @@
         renderHeader(); flashBalance();
         setTimeout(renderProfile, 100);
       } catch (ex) { showError("withdraw", ex.message); }
+    });
+
+    // ---------- Referral copy ----------
+    document.getElementById("ref-copy-btn").addEventListener("click", async () => {
+      const link = document.getElementById("ref-link").value;
+      try { await navigator.clipboard.writeText(link); } catch {}
+      const btn = document.getElementById("ref-copy-btn");
+      const orig = btn.textContent;
+      btn.textContent = "Скопировано";
+      if (window.SFX) SFX.win();
+      setTimeout(() => { btn.textContent = orig; }, 1400);
     });
 
     // ---------- Promo form ----------

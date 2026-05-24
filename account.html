@@ -43,6 +43,10 @@
           <label>Повторите пароль</label>
           <input type="password" name="password2" autocomplete="new-password" required minlength="4">
         </div>
+        <div class="field">
+          <label>Реферальный код <span style="color: var(--muted); font-size: 12px;">— необязательно</span></label>
+          <input type="text" name="referral" placeholder="ABC123" maxlength="6" autocomplete="off" style="text-transform: uppercase; font-family: ui-monospace, monospace; letter-spacing: 1px;">
+        </div>
         <button class="btn primary full" type="submit">Создать аккаунт</button>
       </form>
 
@@ -81,7 +85,11 @@
     tabs.forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
 
     const params = new URLSearchParams(location.search);
-    if (params.get("tab") === "register") switchTab("register");
+    if (params.get("tab") === "register" || params.get("ref")) switchTab("register");
+    if (params.get("ref")) {
+      const refInput = regForm.querySelector("[name=referral]");
+      if (refInput) refInput.value = params.get("ref").toUpperCase();
+    }
     if (currentUser()) location.href = "index.html";
 
     loginForm.addEventListener("submit", (e) => {
@@ -103,7 +111,7 @@
         return showError("Пароли не совпадают");
       }
       try {
-        registerUser(fd.get("login"), fd.get("password"));
+        registerUser(fd.get("login"), fd.get("password"), { referredBy: fd.get("referral") });
         if (window.SFX) SFX.win();
         location.href = "index.html";
       } catch (ex) { showError(ex.message); }

@@ -169,6 +169,7 @@
       updateBalance(-bet);
       renderHeader();
       flashBalance();
+      if (typeof onBet === "function") onBet(bet);
 
       rollBtn.disabled = true;
       betInput.disabled = true;
@@ -204,10 +205,12 @@
           const bigWin = multiplier >= 3;
           if (window.SFX) setTimeout(() => SFX.win(bigWin), 150);
           if (bigWin) confetti(Math.min(40 + Math.floor(multiplier * 8), 160));
+          if (typeof onWin === "function") onWin({ bet, payout, multiplier, game: "dice" });
           rollSub.textContent = `${roll.toFixed(2)} ${direction === "under" ? "<" : ">"} ${target.toFixed(2)} — победа`;
           setResult(`Выигрыш €${fmt(payout)} (+€${fmt(profit)}) при множителе ${multiplier.toFixed(2)}×`, "win");
         } else {
           if (window.SFX) setTimeout(() => SFX.lose(), 150);
+          if (typeof onLoss === "function") onLoss({ bet, game: "dice" });
           rollSub.textContent = `${roll.toFixed(2)} ${direction === "under" ? "≥" : "≤"} ${target.toFixed(2)} — мимо`;
           setResult(`Не повезло. Ставка €${fmt(bet)} сгорела.`, "lose");
         }
