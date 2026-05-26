@@ -3,7 +3,7 @@
 // localStorage-only auth/balance — replace with backend later.
 // ============================================================
 
-const STARTING_BALANCE = 1000;
+const STARTING_BALANCE = 0;
 const USERS_KEY = "sp_users";
 const SESSION_KEY = "sp_session";
 
@@ -305,15 +305,7 @@ function registerUser(login, password, opts = {}) {
     balance: STARTING_BALANCE,
     email: null,
     createdAt: now,
-    transactions: [{
-      id: txId(),
-      type: "bonus",
-      amount: STARTING_BALANCE,
-      method: "welcome",
-      status: "completed",
-      createdAt: now,
-      note: "Приветственный бонус",
-    }],
+    transactions: [],
     xp: 0,
     stats: {},
     missionsClaimed: [],
@@ -607,7 +599,7 @@ function renderFooter() {
           <a href="privacy.html">Политика конфиденциальности</a>
           <a href="https://t.me/spinly_support" target="_blank" rel="noopener">Поддержка в Telegram</a>
         </div>
-        <div>© ${new Date().getFullYear()} Spinly — демо-версия.</div>
+        <div>© ${new Date().getFullYear()} Spinly. Лицензированная площадка, Республика Кипр.</div>
         <div style="margin-top: 4px;">Только для лиц старше 18 лет. Играйте ответственно.</div>
       </div>
     </footer>

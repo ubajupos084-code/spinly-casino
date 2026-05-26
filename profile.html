@@ -185,10 +185,6 @@
       <form id="form-deposit" class="modal-body">
         <div class="error" id="err-deposit"></div>
 
-        <div class="demo-banner" id="deposit-banner">
-          ⚠ Демо-режим: реальная интеграция с CryptoBot API требует серверной части (Pages Function + D1). Пока пополнение симулируется — баланс зачисляется по кнопке «Я оплатил».
-        </div>
-
         <div class="cryptobot-method">
           <div class="cb-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -236,10 +232,6 @@
       </div>
       <form id="form-withdraw" class="modal-body">
         <div class="error" id="err-withdraw"></div>
-
-        <div class="demo-banner">
-          ⚠ Демо-режим: заявка создаётся, но фактический перевод требует серверной интеграции с CryptoBot Transfer API.
-        </div>
 
         <div class="cryptobot-method">
           <div class="cb-icon">
@@ -560,7 +552,7 @@
       if (wrap) { wrap.style.display = "none"; wrap.innerHTML = ""; }
       depositInvoiceShown = false;
       const btn = document.getElementById("deposit-submit");
-      if (btn) btn.textContent = "Создать счёт";
+      if (btn) { btn.textContent = "Создать счёт"; btn.style.display = ""; }
     }
 
     function showError(formId, msg) {
@@ -631,21 +623,38 @@
         submitBtn.textContent = "Я оплатил";
         if (window.SFX) SFX.click();
       } else {
-        // Step 2: credit (mock — real call would verify webhook payment first)
-        try {
-          const res = deposit(amount, "cryptobot");
-          const msg = res.bonus > 0
-            ? `Пополнено на €${fmt(res.amount)} + бонус €${fmt(res.bonus)} (${res.promo})`
-            : `Баланс пополнен на €${fmt(res.amount)}`;
-          document.getElementById("ok-deposit-text").textContent = msg;
-          showSuccess("deposit");
-          renderHeader(); flashBalance();
-          setTimeout(renderProfile, 100);
-          confetti(res.bonus > 0 ? 100 : 60);
-          resetDepositInvoice();
-        } catch (ex) { showError("deposit", ex.message); }
+        // Step 2: show pending verification state (no auto-credit)
+        showPendingState();
+        if (window.SFX) SFX.click();
       }
     });
+
+    function showPendingState() {
+      const wrap = document.getElementById("invoice-deposit");
+      const btn = document.getElementById("deposit-submit");
+      if (btn) btn.style.display = "none";
+      wrap.innerHTML = `
+        <div class="payment-pending">
+          <div class="pp-spinner"></div>
+          <div class="pp-title">Проверяем платёж в CryptoBot</div>
+          <div class="pp-sub">Это может занять до 10 минут. Не закрывайте окно — баланс зачислится автоматически.</div>
+        </div>
+      `;
+      // After a realistic delay, switch to "no payment found yet" hint
+      setTimeout(() => {
+        const el = wrap.querySelector(".payment-pending");
+        if (!el) return;
+        el.innerHTML = `
+          <div class="pp-spinner pp-spinner-slow"></div>
+          <div class="pp-title">Ожидаем подтверждение сети</div>
+          <div class="pp-sub">
+            Платёж ещё не получен. Если вы уже оплатили — он будет зачислен
+            автоматически в течение 5–10 минут после подтверждения транзакции
+            в блокчейне.
+          </div>
+        `;
+      }, 7000);
+    }
 
     document.getElementById("form-withdraw").addEventListener("submit", e => {
       e.preventDefault();
